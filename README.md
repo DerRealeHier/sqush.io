@@ -1,2 +1,2 @@
 # sqush.io
-Project for the next month or so. Don't know how it will end.
+Itch.io but with better User Experience and more fun to use.
