@@ -1,3 +1,4 @@
+/* I should have commented this */
 h1{
    color: #1313aa;
 
@@ -6,13 +7,95 @@ nav{
     background-color: #1313aa;
     color: #211f28;
 }
-a:link {
-    color: black;
+a{
     text-decoration: none;
-    font-weight: bold;
-    margin-right: 50px;
 }
 h2{
     color: #1313aa;
 
+}
+.navbar-expand-lg {
+    opacity: 30%;
+}
+.NavBar{
+    background-color: transparent;
+    color: #FFFFFF !important; /* its so the Browser loads it in first (I think) */
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin: 0 25px;
+    position: relative;
+    text-decoration: none;
+    padding: 5px 0;
+    display: inline-block;
+    text-shadow: 0 2px 4px #000000, 0 4px 12px #000000;
+    transition: color 0.5s ease, transform 0.5s ease;
+}
+.navbar {
+    background-color: #15151C00;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 12px;
+    padding: 12px 30px;
+    max-width: 750px;
+    margin: 0 auto 50px auto;
+    border: 1px solid #FFFFFF00;
+    box-shadow: 0 8px 32px 0 #00000000;
+    transition: background-color 0.4s ease, backdrop-filter 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+
+}
+.navbar:hover {
+    background-color: #15151CD9;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid #FFFFFF1A;
+    box-shadow: 0 8px 32px 0 #00000080;
+}
+.NavBar::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    transform: scaleX(0);
+    height: 3px;
+    bottom: 0;
+    left: 0;
+    background-color: #ffffff;
+    transform-origin: bottom center;
+    box-shadow: 0 2px 4px #000000;
+}
+.NavBar:hover{
+    color: #FFFFFF !important;
+    transform: translateY(-2px);
+    text-shadow: 0 0 12px #FFFFFF66 , 0 2px 8px #000000 ;
+}
+
+.NavBar:hover::after {
+    transform: scaleX(1);
+}
+
+.BackgroundImage{
+    background-color: black;
+    background-image: linear-gradient(#1313AAD9, #211F28EC) , url("https://raw.githubusercontent.com/DerRealeHier/sqush.io/main/AI_generatedBackground.png");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    width: 100%;
+    padding: 60px 0 100px 0;
+    opacity: 80%;
+    box-shadow: inset 0 -15px 30px #00000099;
+    overflow: hidden;
+    transition: transform 0.5s ease;
+}
+.BackgroundImage:hover{
+    animation: gentlePulse 4s ease-in-out infinite;
+}
+@keyframes gentlePulse {
+    0%{
+        transform: scale(1);
+    }
+    50%{
+        transform: scale(1.03);
+    }
+    100%{
+        transform: scale(1);
+    }
 }
