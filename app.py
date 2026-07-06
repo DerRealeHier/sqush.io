@@ -63,6 +63,15 @@ class Game(db.Model):
 
     #My Foreign Key (:
     developer_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable = False)
+class Purchase(db.Model):
+    id = db.Column(db.Integer, primary_key = True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable = False)
+    game_id = db.Column(db.Integer, db.ForeignKey("game.id"), nullable = False)
+    #For Later
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    game_id = db.Column(db.Integer, db.ForeignKey("game.id"), nullable=False)
+    game = db.relationship("Game", backref="purchases")
 
 class Screenshot(db.Model):
     id = db.Column(db.Integer, primary_key = True)
@@ -133,6 +142,16 @@ def logout():
     logout_user()
     return redirect(url_for("home"))
 
+@app.route("/purchase/<int:game_id>", methods = ["POST"])
+@login_required
+def purchase(game_id):
+    #Rather not buy it twice
+    if Purchase.query.filter_by(user_id=current_user.id, game_id=game_id).first():
+        return "Brochacho, you already own that", 400
+    new_purchase = Purchase(user_id=current_user.id, game_id=game_id)
+    db.session.add(new_purchase)
+    db.session.commit()
+    return redirect(url_for("library"))
 
 #This is for the home Page.
 @app.route("/")
@@ -148,6 +167,15 @@ def home():
             game.display_price = game.price
 
     return render_template('home.html', sale_games=sale_games)
+
+@app.route("/library")
+@login_required
+def library():
+    #What did the user already buy? Money go brrr xD
+    purchases = Purchase.query.filter_by(user_id=current_user.id).all()
+    #get those game objects
+    owned_games = [Game.query.get(p.game_id) for p in purchases]
+    return render_template("library.html", games=owned_games)
 
 #Store Page
 @app.route("/store")
