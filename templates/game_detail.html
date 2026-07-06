@@ -13,6 +13,21 @@
     </style>
 </head>
 <body>
+<nav class="container p-3 d-flex justify-content-between align-items-center">
+    <div>
+        <a href="{{ url_for('home') }}" class="btn btn-outline-light btn-sm me-2 fw-bold" style="border: 2px solid #fff;">HOME</a>
+        <a href="{{ url_for('store_front') }}" class="btn btn-outline-light btn-sm fw-bold" style="border: 2px solid #fff;">STORE</a>
+    </div>
+    <div class="comic-frame p-2" style="border: 2px solid #ffeb3b;">
+        {% if current_user.is_authenticated %}
+        <span class="text-warning fw-bold me-2">{{ current_user.username }}</span>
+        <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm fw-bold" style="border: 2px solid #000;">LOGOUT</a>
+        {% else %}
+        <a href="{{ url_for('login') }}" class="btn btn-light btn-sm fw-bold me-1" style="border: 2px solid #000;">LOGIN</a>
+        <a href="{{ url_for('register') }}" class="btn btn-warning btn-sm fw-bold" style="border: 2px solid #000;">REGISTER</a>
+        {% endif %}
+    </div>
+</nav>
 <div class="container py-5">
     <div id="steamCarousel" class="carousel slide comic-frame mb-4" data-bs-ride="carousel">
         <div class="carousel-inner">
@@ -31,7 +46,11 @@
 
             {% for vid in videos %}
             <div class="carousel-item">
+                {% if vid.video_path.startswith("youtube:") %}
+                <iframe width="100%" height="400" src="https://www.youtube.com/embed/{{ vid.video_path.split(':')[1] }}"></iframe>
+                {% else %}
                 <video controls><source src="{{ url_for('static', filename=vid.video_path) }}" type="video/mp4"></video>
+                {% endif %}
             </div>
             {% endfor %}
         </div>
@@ -57,7 +76,7 @@
             {% else %}
             <span class="price-tag">{{ "%.2f"|format(game.price) }}€</span>
             {% endif %}
-            <button class="btn btn-success btn-lg ms-4 px-5 fw-bold" style="border: 3px solid #000;">KAUFEN</button>
+            <button class="btn btn-success btn-lg ms-4 px-5 fw-bold" style="border: 3px solid #000;">BUY</button>
         </div>
     </div>
 </div>
