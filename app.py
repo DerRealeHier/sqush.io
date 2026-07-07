@@ -288,7 +288,6 @@ def edit_game(game_id):
     game = Game.query.get_or_404(game_id)
     if current_user.role != "dev":
         return "Access Denied. How could you?", 403
-    game = Game.query.get_or_404(game_id)
     if game.developer_id != current_user.id:
         return "Access Denied: Better Luck next time (:", 403
 
