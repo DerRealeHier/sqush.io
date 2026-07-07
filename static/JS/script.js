@@ -1,3 +1,11 @@
+console.log("Sanity check");
+
+fetch("/config")
+    .then((result) => {return result.json;})
+    .then((data) => {
+        const stripe = Stripe(data.publicKey);
+    });
+
 let players = {};
 
 function onYouTubeIframeAPIReady() {
@@ -13,7 +21,7 @@ function onYouTubeIframeAPIReady() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // === Suchfunktion für Home ===
+    // Searchfunction for home
     const gameSearch = document.getElementById('gameSearch');
     if (gameSearch) {
         gameSearch.addEventListener('input', function(e) {
@@ -41,7 +49,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // === Filterfunktion für Store ===
+    // Filtering for the store
     const storeSearch = document.getElementById('storeSearch');
     const genreFilter = document.getElementById('genreFilter');
     const tagFilter = document.getElementById('tagFilter');
@@ -96,7 +104,7 @@ document.addEventListener('DOMContentLoaded', function() {
         saleFilter.addEventListener('change', filterGames);
     }
 
-    // === Video Hover Steuerung (Home & Store) ===
+    // Hover for home and store
     document.querySelectorAll('.game-card, .home-sale-card').forEach(card => {
         const videoType = card.getAttribute('data-video-type');
         if (!videoType || videoType === 'none') return;

@@ -37,7 +37,7 @@
                 Sqush
             </button>
             <ul class="dropdown-menu text-center comic-dropdown-menu" aria-labelledby="dropdownMenuButton">
-                <li><a class="dropdown-item comic-dropdown-item" href="javascript:void(0)">Library</a></li>
+                <li><a class="dropdown-item comic-dropdown-item" href="{{ url_for('library') }}">Library</a></li>
                 {% if current_user.is_authenticated and current_user.role == 'dev' %}
                 <li><a class="dropdown-item comic-dropdown-item text-danger" href="/dashboard">Dev Dashboard</a></li>
                 {% endif %}

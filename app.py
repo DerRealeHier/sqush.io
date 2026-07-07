@@ -1,12 +1,22 @@
-#I'm not forgetting comments this time
 import os
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
 from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user,login_required
 from werkzeug.security import check_password_hash, generate_password_hash
+import stripe #juicy money XD
 
 app= Flask(__name__)
+# Stripe API Keys. I'll do the right one later
+app.config["STRIPE_SECRET_KEY"] = "sk_test_..." # you ain't gonna get my real key
+app.config["STRIPE_PUBLISHABLE_KEY"] = "pk_test_..."
+
+stripe_keys = {
+    "secret_key": "sk_test_dein_echter_key_hier",
+    "publishable_key": "pk_test_dein_echter_key_hier",
+}
+
+stripe.api_key = stripe_keys["secret_key"]
 
 @app.context_processor
 def inject_models():
@@ -63,11 +73,8 @@ class Game(db.Model):
 
     #My Foreign Key (:
     developer_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable = False)
+
 class Purchase(db.Model):
-    id = db.Column(db.Integer, primary_key = True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable = False)
-    game_id = db.Column(db.Integer, db.ForeignKey("game.id"), nullable = False)
-    #For Later
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     game_id = db.Column(db.Integer, db.ForeignKey("game.id"), nullable=False)
@@ -100,7 +107,7 @@ def save_file(file):
         return f"uploads/{filename}"
     return None
 
-#authentication routes. That will be work
+#authentication routes.
 @app.route("/register", methods = ["GET", "POST"])
 def register():
     if request.method == "POST":
@@ -177,6 +184,11 @@ def library():
     owned_games = [Game.query.get(p.game_id) for p in purchases]
     return render_template("library.html", games=owned_games)
 
+@app.route("/buy/<int:game_id>", methods = ["GET", "POST"])
+def buy(game_id):
+    game = Game.query.get_or_404(game_id)
+    return render_template("buy.html", game=game)
+
 #Store Page
 @app.route("/store")
 def store_front():
@@ -243,6 +255,10 @@ def edit_game(game_id):
         db.session.commit()
         return redirect(url_for("developer_dashboard"))
     return render_template("edit_game.html",game=game)
+@app.route("/config")
+def get_publishable_key():
+    stripe_config = {"publicKey": stripe_keys["publishable_key"]}
+    return jsonify(stripe_config)
 #It's a dev panel now ):
 @app.route("/dashboard", methods=["GET" , "POST"])
 @login_required
@@ -303,5 +319,6 @@ def developer_dashboard():
     for game in my_games:
         game.display_price = game.price * (1 - game.discount_percent / 100) if game.is_on_sale else game.price
     return render_template("admin.html", games=my_games)
+
 if __name__ == "__main__":
     app.run(debug = True)

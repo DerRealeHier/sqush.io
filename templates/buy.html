@@ -1,0 +1,15 @@
+{% extends "home.html" %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        <h1 class="title">Bestätigung</h1>
+        <p>Möchtest du {{ game.title }} wirklich kaufen?</p>
+
+        <form action="{{ url_for('purchase', game_id=game.id) }}" method="POST">
+            <button type="submit" class="button is-success is-large">JA, JETZT KAUFEN!</button>
+            <a href="{{ url_for('game_detail', game_id=game.id) }}" class="button is-light">Abbrechen</a>
+        </form>
+    </div>
+</section>
+{% endblock %}
