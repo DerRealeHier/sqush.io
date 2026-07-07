@@ -1,6 +1,8 @@
+import json
 import os
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.testing.pickleable import User
 from werkzeug.utils import secure_filename
 from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user,login_required
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -22,6 +24,12 @@ stripe_keys = {
 
 stripe.api_key = stripe_keys["secret_key"]
 
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
+
+def allowed_file(filename):
+    return '.' in filename and \
+        filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 @app.context_processor
 def inject_models():
     return dict(Screenshot=Screenshot, Video=Video)
@@ -32,9 +40,17 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 #Directory for Videos , Pictures and REAL GAME FILES. I wouldn't wanna pay for the Server ):
 UPLOAD_FOLDER = "static/uploads"
+AVATAR_FOLDER = "static/avatars"
+app.config['AVATAR_FOLDER'] = AVATAR_FOLDER
+os.makedirs(AVATAR_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok = True)
 db = SQLAlchemy(app)
+
+friends = db.Table('friends',
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id')),
+    db.Column('friend_id', db.Integer, db.ForeignKey('user.id'))
+)
 
 #Initiliaze Login
 login_manager = LoginManager(app)
@@ -42,11 +58,18 @@ login_manager.login_view = "login" #YOU BETTER LOGIN
 
 #Database model for my Users <)
 class User(UserMixin, db.Model):
+    profile_image = db.Column(db.String(250), default = "avatars/default.png")
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), nullable=False, unique=True)
     email = db.Column(db.String(128), nullable=False, unique=True) #trash-mails must be allowed
     password_hash = db.Column(db.String(250), nullable=False) #Quantum Computers shall fall
     role = db.Column(db.String(20), default="user") #you should be the dev
+    #onlyfriends
+    followed = db.relationship("User", secondary=friends,
+        primaryjoin=(friends.c.user_id == id),
+        secondaryjoin=(friends.c.friend_id == id),
+        backref=db.backref('followers', lazy='dynamic'), lazy='dynamic'
+    )
 
     #linking more than just one game
     games = db.relationship("Game", backref="user", lazy=True)
@@ -66,6 +89,7 @@ class Game(db.Model):
     priority = db.Column(db.String(20),default = "normal")
     tags = db.Column(db.String(200)) # My lovely Tags. take them apart with: ,    BUT DON'T DO THIS THEY HAVE FAMILY
     price = db.Column (db.Float, nullable = False)
+    view_count = db.Column(db.Integer, default=0) #We need the DATA!
     image_path = db.Column(db.String(250))
     video_path = db.Column(db.String(250)) # The link couldn't be that long (:
     #Marketplace Fields.
@@ -141,10 +165,53 @@ def login():
             login_user(user, remember=True)
             if user.role == "dev":
                 return redirect(url_for("developer_dashboard"))
-            return redirect(url_for("home"))
+            return redirect(url_for("profile", username=user.username))
         return "Invalid username or password"
     return render_template("login.html")
 
+@app.route("/follow/<username>")
+@login_required
+def follow(username):
+    user = User.query.filter_by(username=username).first()
+    if user and user != current_user:
+        current_user.followed.append(user)
+        db.session.commit()
+    return redirect(url_for('profile', username=username))
+
+@app.route('/unfollow/<username>')
+@login_required
+def unfollow(username):
+    user= User.query.filter_by(username=username).first()
+    if user and user != current_user:
+        current_user.followed.remove(user)
+        db.session.commit()
+    return redirect(url_for('profile', username=username))
+
+@app.route("/increment_view/<int:game_id>", methods = ["POST"])
+def increment_view(game_id):
+    game = Game.query.get_or_404(game_id)
+    game.view_count += 1
+    db.session.commit()
+    return jsonify({"status": "success", "views": game.view_count})
+
+@app.route("/update_profile", methods=["POST"])
+@login_required
+def update_profile():
+    file = request.files.get("profile_pic")
+    if file and file.filename != "" and allowed_file(file.filename):
+        filename = secure_filename(f"user_{current_user.id}_{file.filename}")
+        file.save(os.path.join(app.config["AVATAR_FOLDER"], filename))
+        current_user.profile_image = f"avatars/{filename}"
+        db.session.commit()
+    else:
+        return "Not allowed. ONLY PICTURES!", 400
+    return redirect(url_for("profile", username=current_user.username))
+
+@app.route("/profile/<username>")
+@login_required
+def profile(username):
+    target_user = User.query.filter_by(username=username).first_or_404()
+    return render_template("profile.html", user=target_user)
 #You shouldn't even wanna do this. 🤬
 @app.route("/logout")
 @login_required
@@ -169,7 +236,7 @@ def home():
     sale_games = Game.query.filter_by(is_on_sale=True).all()
 
     for game in sale_games:
-        game.tag_list = [t.strip() for t in game.tags.split(",")] if game.tags else []
+        game.tags_json = json.dumps([t.strip().lower() for t in game.tags.split(",")]) if game.tags else "[]"
 
         if game.is_on_sale == True and game.discount_percent > 0:
             game.display_price = game.price * (1 - game.discount_percent / 100)
@@ -187,6 +254,17 @@ def library():
     owned_games = [Game.query.get(p.game_id) for p in purchases]
     return render_template("library.html", games=owned_games)
 
+@app.route("/community", methods=["GET","POST"])
+def community():
+    query = request.form.get("search") if request.method == "POST" else None
+    if query:
+        users = User.query.filter(User.username.ilike(f"%{query}%")).all()
+    else:
+        users = User.query.all()
+
+    return render_template("community.html", users=users)
+
+
 @app.route("/buy/<int:game_id>", methods = ["GET", "POST"])
 def buy(game_id):
     game = Game.query.get_or_404(game_id)
@@ -203,8 +281,8 @@ def store_front():
     #Sorting them after their genre.
     games_by_genre = {}
     for game in all_games: #while true loop would be great here (; The performance would go crazy
-        game.tag_list = [t.strip() for t in game.tags.split(",")] if game.tags else []
-
+        tags = [t.strip().lower() for t in game.tags.split(",")] if game.tags else []
+        game.tags_json = json.dumps(tags)
         if game.is_on_sale == True and game.discount_percent > 0:
             game.display_price = game.price * (1 - game.discount_percent / 100)
         else:
@@ -335,7 +413,7 @@ def developer_dashboard():
         is_on_sale = "is_on_sale" in request.form
         discount_percent = int(request.form.get("discount_percent", 0))
 
-        image_file = request.files["image"]
+        image_file = request.files.get("image")
         uploaded_video = request.files.get("video_file")
         video_youtube = request.form.get("video_youtube", "").strip()
         game_file = request.files.get("game_file")

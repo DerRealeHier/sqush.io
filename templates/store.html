@@ -66,19 +66,19 @@
 
     <div class="container-fluid pb-4 text-center pt-5">
         <div class="dropdown">
-            <button class="btn dropdown-toggle fs-1 comic-dropdown-btn border-0" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
-                Sqush
-            </button>
-            <ul class="dropdown-menu text-center comic-dropdown-menu" aria-labelledby="dropdownMenuButton">
-                {% if current_user.is_authenticated %}
-                <li><a class="dropdown-item comic-dropdown-item" href="{{ url_for('profile', username=current_user.username) }}">My profile</a></li>
-                {% endif %}
-                <li><a class="dropdown-item comic-dropdown-item" href="/">Home</a></li>
-                {% if current_user.is_authenticated and current_user.role == 'dev' %}
-                <li><a class="dropdown-item comic-dropdown-item text-danger" href="/dashboard">Dev Dashboard</a></li>
-                {% endif %}
-            </ul>
-        </div>
+        <button class="btn dropdown-toggle fs-1 comic-dropdown-btn border-0" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+            Sqush
+        </button>
+        <ul class="dropdown-menu text-center comic-dropdown-menu" aria-labelledby="dropdownMenuButton">
+            {% if current_user.is_authenticated %}
+            <li><a class="dropdown-item comic-dropdown-item" href="{{ url_for('profile', username=current_user.username) }}">My profile</a></li>
+            {% endif %}
+            <li><a class="dropdown-item comic-dropdown-item" href="{{ url_for('library') }}">Library</a></li>
+            {% if current_user.is_authenticated and current_user.role == 'dev' %}
+            <li><a class="dropdown-item comic-dropdown-item text-danger" href="/dashboard">Dev Dashboard</a></li>
+            {% endif %}
+        </ul>
+    </div>
     </div>
 </div>
 
@@ -166,3 +166,5 @@
         {% endfor %}
     </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
