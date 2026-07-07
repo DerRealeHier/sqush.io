@@ -1,5 +1,5 @@
 html, body {
-    background-color: #0d0d12 !important;
+    background-color: #0d0d12 ;
     background-image:
             radial-gradient(rgba(255,255,255,0.1) 15%, transparent 16%),
             radial-gradient(rgba(255,255,255,0.1) 15%, transparent 16%);
@@ -54,7 +54,7 @@ a {
 }
 
 .NavBar {
-    color: #fff !important;
+    color: #fff ;
     font-weight: 900;
     text-transform: uppercase;
     border: 3px solid #000;
@@ -68,7 +68,7 @@ a {
 
 .NavBar:hover {
     background: #ffeb3b;
-    color: #000 !important;
+    color: #000 ;
     transform: translate(2px, 2px);
     box-shadow: 2px 2px 0px #000;
 }
@@ -104,7 +104,7 @@ a {
 
 .comic-logout-btn {
     background: #ff5722;
-    color: #fff !important;
+    color: #fff ;
     font-weight: 900;
     text-transform: uppercase;
     border: 3px solid #000;
@@ -119,7 +119,7 @@ a {
 
 .comic-logout-btn:hover {
     background: #000;
-    color: #fff !important;
+    color: #fff ;
     box-shadow: 2px 2px 0px #000;
     transform: translate(2px, 2px);
 }
@@ -128,24 +128,24 @@ a {
 .comic-dropdown-btn {
     text-shadow: 4px 4px 0px #000;
     font-weight: 900;
-    color: #fff !important;
+    color: #fff ;
     text-transform: uppercase;
     letter-spacing: 2px;
 }
 
 .comic-dropdown-menu {
-    background: #fff !important;
-    border: 4px solid #000 !important;
-    box-shadow: 8px 8px 0px #000 !important;
-    border-radius: 0 !important;
-    padding: 0 !important;
+    background: #fff ;
+    border: 4px solid #000 ;
+    box-shadow: 8px 8px 0px #000 ;
+    border-radius: 0 ;
+    padding: 0 ;
 }
 
 .comic-dropdown-item {
     font-weight: 900;
     text-transform: uppercase;
-    color: #000 !important;
-    padding: 10px 20px !important;
+    color: #000 ;
+    padding: 10px 20px ;
     border-bottom: 3px solid #000;
 }
 
@@ -154,13 +154,13 @@ a {
 }
 
 .comic-dropdown-item:hover {
-    background: #ffeb3b !important;
-    color: #000 !important;
+    background: #ffeb3b ;
+    color: #000 ;
 }
 
 
 .home-sale-title, .SaleBanner h1 {
-    color: #fff !important;
+    color: #fff ;
     font-size: 3rem;
     letter-spacing: 3px;
     text-shadow: 4px 4px 0px #000, 6px 6px 0px #dc3545;
@@ -169,7 +169,7 @@ a {
 }
 
 .genre-title {
-    color: #ffeb3b !important;
+    color: #ffeb3b ;
     font-size: 2rem;
     font-weight: 900;
     text-shadow: 3px 3px 0px #000;
@@ -182,7 +182,7 @@ a {
 
 
 .game-card, .home-sale-card {
-    background: #ffffff !important;
+    background: #ffffff ;
     border: 4px solid #000000;
     border-radius: 0;
     box-shadow: 8px 8px 0px #000000;
@@ -202,7 +202,7 @@ a {
 }
 
 .comic-card-title {
-    color: #000 !important;
+    color: #000 ;
     font-weight: 900;
     text-transform: uppercase;
     font-size: 1.5rem;
@@ -232,8 +232,8 @@ a {
 }
 
 .comic-badge-tag {
-    background: #00bcd4 !important;
-    color: #000 !important;
+    background: #00bcd4 ;
+    color: #000 ;
     border: 2px solid #000;
     font-weight: bold;
     box-shadow: 2px 2px 0px #000;
@@ -274,11 +274,11 @@ a {
 }
 
 .filter-input, .filter-select {
-    background-color: #fff !important;
-    border: 3px solid #000 !important;
-    color: #000 !important;
+    background-color: #fff ;
+    border: 3px solid #000 ;
+    color: #000 ;
     font-weight: 900;
-    border-radius: 0 !important;
+    border-radius: 0 ;
     box-shadow: 4px 4px 0px #000;
 }
 
@@ -288,24 +288,24 @@ a {
 }
 
 .filter-check {
-    border: 3px solid #000 !important;
-    background-color: #fff !important;
+    border: 3px solid #000 ;
+    background-color: #fff ;
     width: 24px;
     height: 24px;
     cursor: pointer;
     box-shadow: 2px 2px 0px #000;
-    border-radius: 0 !important;
+    border-radius: 0 ;
 }
 
 .filter-check:checked {
-    background-color: #ffeb3b !important;
-    border-color: #000 !important;
+    background-color: #ffeb3b ;
+    border-color: #000 ;
 }
 
 
 .comic-btn-store {
     background: #ff5722;
-    color: #fff !important;
+    color: #fff ;
     font-weight: 900;
     text-transform: uppercase;
     border: 3px solid #000;
@@ -320,7 +320,7 @@ a {
 
 .comic-btn-store:hover {
     background: #ffeb3b;
-    color: #000 !important;
+    color: #000 ;
     transform: translate(2px, 2px);
     box-shadow: 2px 2px 0px #000;
 }
@@ -340,7 +340,7 @@ a {
 }
 
 .game-card:hover .game-video, .home-sale-card:hover .game-video {
-    opacity: 1 !important;
+    opacity: 1 ;
 }
 .dev-panel {
     background: #4caf50;
@@ -351,7 +351,7 @@ a {
 }
 
 .dev-title {
-    color: #fff !important;
+    color: #fff ;
     text-shadow: 3px 3px 0px #000;
     font-weight: 900;
     text-transform: uppercase;
@@ -359,23 +359,23 @@ a {
 
 
 .comic-table {
-    background: #fff !important;
-    border: 4px solid #000 !important;
+    background: #fff ;
+    border: 4px solid #000 ;
     box-shadow: 8px 8px 0px #000;
-    color: #000 !important;
+    color: #000 ;
 }
 
 .comic-table th {
-    background: #ffeb3b !important; /* Gelber Tabellenkopf */
-    color: #000 !important;
+    background: #ffeb3b ;
+    color: #000 ;
     font-weight: 900;
     text-transform: uppercase;
-    border-bottom: 4px solid #000 !important;
+    border-bottom: 4px solid #000 ;
     border-right: 2px solid #000;
 }
 
 .comic-table td {
-    border: 2px solid #000 !important;
+    border: 2px solid #000 ;
     font-weight: bold;
     vertical-align: middle;
 }
@@ -383,7 +383,7 @@ a {
 
 .btn-comic-add {
     background: #00bcd4;
-    color: #000 !important;
+    color: #000 ;
     font-weight: 900;
     text-transform: uppercase;
     border: 3px solid #000;
@@ -399,7 +399,7 @@ a {
 
 .btn-comic-edit {
     background: #ffeb3b;
-    color: #000 !important;
+    color: #000 ;
     font-weight: 900;
     border: 2px solid #000;
     box-shadow: 2px 2px 0px #000;
@@ -407,12 +407,12 @@ a {
 
 .btn-comic-edit:hover {
     background: #000;
-    color: #fff !important;
+    color: #fff ;
 }
 
 .btn-comic-delete {
     background: #e91e63;
-    color: #fff !important;
+    color: #fff ;
     font-weight: 900;
     border: 2px solid #000;
     box-shadow: 2px 2px 0px #000;
@@ -420,5 +420,5 @@ a {
 
 .btn-comic-delete:hover {
     background: #000;
-    color: #fff !important;
+    color: #fff ;
 }

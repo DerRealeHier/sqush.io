@@ -8,12 +8,9 @@ import stripe #juicy money XD
 
 app= Flask(__name__)
 # Stripe API Keys. I'll do the right one later
-app.config["STRIPE_SECRET_KEY"] = "sk_test_..." # you ain't gonna get my real key
-app.config["STRIPE_PUBLISHABLE_KEY"] = "pk_test_..."
-
 stripe_keys = {
-    "secret_key": "sk_test_dein_echter_key_hier",
-    "publishable_key": "pk_test_dein_echter_key_hier",
+    "secret_key": "Ain't giving you my secret",
+    "publishable_key": "pk_test_51Tq7urB0plBfldb61oJJPeGgYj56UsC9Hey7ZRo6X2nEZo1AWSIIOPsJoGXygGP1atqO2RmO008KwqLD4eDftzH500DhpLxnY9",
 }
 
 stripe.api_key = stripe_keys["secret_key"]
@@ -187,6 +184,10 @@ def library():
 @app.route("/buy/<int:game_id>", methods = ["GET", "POST"])
 def buy(game_id):
     game = Game.query.get_or_404(game_id)
+    if game.is_on_sale and game.discount_percent > 0:
+        game.display_price = game.price * (1 - game.discount_percent / 100)
+    else:
+        game.display_price = game.price
     return render_template("buy.html", game=game)
 
 #Store Page
@@ -208,6 +209,59 @@ def store_front():
 
         games_by_genre[game.genre].append(game)
     return render_template("store.html", genres=games_by_genre)
+
+@app.route("/create-checkout-session/<int:game_id>")
+def create_checkout_session(game_id):
+    game = Game.query.get_or_404(game_id)
+    stripe.api_key = stripe_keys["secret_key"]
+
+    display_price = game.price * (1 - game.discount_percent / 100) if game.is_on_sale else game.price
+    unit_amount = int(display_price * 100)
+
+    try:
+        checkout_session = stripe.checkout.Session.create(
+            success_url=url_for("success", game_id=game.id, _external=True),
+            cancel_url=url_for("game_detail", game_id=game.id, _external=True),
+            payment_method_types=["card"],
+            mode="payment",
+            line_items=[
+                {
+                    "price_data": {
+
+                        "currency": "eur",
+                        "product_data": {
+                            "name": game.title,
+                        },
+                        "unit_amount": unit_amount,
+                    },
+                    "quantity": 1,
+                }
+            ]
+        )
+        return jsonify({"sessionId": checkout_session["id"]})
+    except Exception as e:
+        return jsonify(error=str(e)), 403
+
+@app.route("/success/<int:game_id>")
+@login_required
+def success(game_id):
+    if not Purchase.query.filter_by(user_id=current_user.id, game_id=game_id).first():
+        new_purchase = Purchase(user_id=current_user.id, game_id=game_id)
+        db.session.add(new_purchase)
+        db.session.commit()
+
+    game= Game.query.get_or_404(game_id)
+    return render_template("success.html", game=game)
+
+@app.route("/remove_purchase/<int:game_id>", methods=["POST"])
+def remove_purchase(game_id):
+    purchase = Purchase.query.filter_by(user_id=current_user.id, game_id=game_id).first()
+
+    if purchase:
+        db.session.delete(purchase)
+        db.session.commit()
+
+    return redirect(url_for("library"))
 
 #This Server would cry
 @app.route("/game/<int:game_id>")
@@ -269,7 +323,7 @@ def developer_dashboard():
     if request.method == "POST":
         title = request.form["title"]
         genre = request.form["genre"]
-        priority = request.form["priority"]
+        priority = request.form.get("priority", "normal")
         tags = request.form["tags"]
         price = float(request.form["price"])
         description = request.form.get("description")

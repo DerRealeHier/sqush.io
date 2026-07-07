@@ -1,15 +1,88 @@
-{% extends "home.html" %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CONFIRM - {{ game.title }}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.0/css/bulma.min.css">
+    <script src="https://js.stripe.com/v3/"></script>
+    <script src="{{ url_for('static', filename='JS/script.js') }}" defer></script>
 
-{% block content %}
+    <style>
+        .section {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        body {
+            background-color: #0d0d0d;
+            color: #fff;
+            font-family: 'Arial Black', sans-serif;
+            height: 100%;
+            margin: 0;
+        }
+
+        .comic-frame {
+            border: 5px solid #f4f4f4;
+            box-shadow: 12px 12px 0px #ffeb3b;
+            padding: 40px;
+            background: #1a1a1a;
+            margin-top: 80px;
+        }
+
+        .btn-comic {
+            border: 4px solid #000 ;
+            box-shadow: 6px 6px 0px #000 ;
+            font-weight: 900;
+            text-transform: uppercase;
+            padding: 1.5rem 2rem ;
+            transition: transform 0.1s;
+        }
+
+        .btn-comic:hover {
+            transform: translate(-2px, -2px);
+        }
+
+
+        .title {
+            color: #ffeb3b ;
+            text-transform: uppercase;
+            font-size: 3rem ;
+            text-shadow: 3px 3px 0px #fff;
+        }
+
+
+        .button.is-light {
+            background-color: #ddd ;
+            color: #000 ;
+        }
+    </style>
+<body>
+
 <section class="section">
     <div class="container">
-        <h1 class="title">Bestätigung</h1>
-        <p>Möchtest du {{ game.title }} wirklich kaufen?</p>
+        <div class="columns is-centered">
+            <div class="column is-half">
+                <div class="comic-frame has-text-centered">
+                    <h1 class="title">CONFIRM</h1>
+                    <p class="is-size-4 mb-6">Wanna buy <strong>{{ game.title }}</strong> for {{ "%.2f"|format(game.display_price) }}€?</p>
 
-        <form action="{{ url_for('purchase', game_id=game.id) }}" method="POST">
-            <button type="submit" class="button is-success is-large">JA, JETZT KAUFEN!</button>
-            <a href="{{ url_for('game_detail', game_id=game.id) }}" class="button is-light">Abbrechen</a>
-        </form>
+                    <form id="payment-form">
+                        <div class="buttons is-centered">
+                            <button type="button" class="button is-success is-large btn-comic" id="submitBtn" data-game-id="{{ game.id }}">
+                                BUY IT!
+                            </button>
+                            <a href="{{ url_for('game_detail', game_id=game.id) }}" class="button is-light is-large btn-comic">
+                                NO, WAIT!
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 </section>
-{% endblock %}
+
+</body>
+</html>

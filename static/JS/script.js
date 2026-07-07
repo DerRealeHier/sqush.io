@@ -1,10 +1,26 @@
 console.log("Sanity check");
 
-fetch("/config")
-    .then((result) => {return result.json;})
-    .then((data) => {
-        const stripe = Stripe(data.publicKey);
-    });
+document.addEventListener('DOMContentLoaded', () => {
+    fetch("/config")
+        .then((result) => result.json())
+        .then((data) => {
+            const stripe = Stripe(data.publicKey); // Jetzt ist Stripe definiert!
+
+            document.querySelector("#submitBtn").addEventListener("click", (e) => {
+                e.preventDefault();
+                document.querySelector("#submitBtn").addEventListener("click", (e) => {
+                    const gameId = e.target.getAttribute("data-game-id");
+
+                    fetch(`/create-checkout-session/${gameId}`)
+                        .then((result) => { return result.json(); })
+                        .then((data) => {
+                            return stripe.redirectToCheckout({ sessionId: data.sessionId });
+                        })
+                        .catch((err) => { console.error("Stripe Fehler:", err); });
+                });
+            });
+        });
+});
 
 let players = {};
 
