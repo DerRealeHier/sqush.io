@@ -37,6 +37,9 @@
                 Sqush
             </button>
             <ul class="dropdown-menu text-center comic-dropdown-menu" aria-labelledby="dropdownMenuButton">
+                {% if current_user.is_authenticated %}
+                <li><a class="dropdown-item comic-dropdown-item" href="{{ url_for('profile', username=current_user.username) }}">My profile</a></li>
+                {% endif %}
                 <li><a class="dropdown-item comic-dropdown-item" href="{{ url_for('library') }}">Library</a></li>
                 {% if current_user.is_authenticated and current_user.role == 'dev' %}
                 <li><a class="dropdown-item comic-dropdown-item text-danger" href="/dashboard">Dev Dashboard</a></li>

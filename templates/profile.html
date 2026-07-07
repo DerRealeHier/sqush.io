@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PROFILE - {{ user.username }}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <style>
+        body { background-color: #0d0d0d; color: #fff; font-family: 'Arial Black', sans-serif; }
+        .comic-frame { border: 5px solid #fff; box-shadow: 10px 10px 0px #ffeb3b; padding: 30px; background: #1a1a1a; }
+        .profile-pic { width: 150px; height: 150px; border: 5px solid #fff; border-radius: 50%; object-fit: cover; }
+        .btn-comic { border: 3px solid #000; box-shadow: 4px 4px 0px #000; font-weight: 900; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 comic-frame text-center">
+            <h1>PROFILE</h1>
+            <img src="{{ url_for('static', filename=user.profile_image) }}" class="profile-pic mb-3" alt="Avatar">
+            <h3>{{ user.username }}</h3>
+            <p class="text-warning">{{ user.email }}</p>
+
+            <hr class="border-white">
+
+            {% if current_user.is_authenticated and current_user.id == user.id %}
+            <form action="{{ url_for('update_profile') }}" method="POST" enctype="multipart/form-data">
+                <div class="mb-3 text-start">
+                    <label class="form-label">CHANGE AVATAR:</label>
+                    <input type="file" name="profile_pic" class="form-control btn-comic" accept="image/*" required>
+                </div>
+                <button type="submit" class="btn btn-success btn-comic w-100">SAVE CHANGES</button>
+            </form>
+            {% else %}
+            <div class="p-3 border border-secondary border-dashed">
+                <p class="text-muted m-0">THIS IS {{ user.username }}'S PROFILE.</p>
+            </div>
+            {% endif %}
+
+            <div class="mt-3">
+                <a href="{{ url_for('store_front') }}" class="btn btn-light btn-comic">BACK TO STORE</a>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
