@@ -107,6 +107,11 @@
                         <span class="badge tag-badge">{{ tag.strip() }}</span>
                         {% endfor %}
                     </div>
+                    <div class="mb-2">
+                         <span style="background: #333; color: #ffeb3b; padding: 2px 6px; border: 1px solid #555; font-size: 0.75rem; font-weight: bold;">
+                         {{ game.view_count }} Views
+                        </span>
+                    </div>
                     <select name="priority">
                         <option value="normal">Normal</option>
                         <option value="high">High</option>

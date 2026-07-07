@@ -152,6 +152,11 @@
                     <div class="my-2">
                         <span class="comic-price">{{ "%.2f"|format(game.display_price) }}€</span>
                     </div>
+                    <div class="mb-2">
+                         <span class="view-count-badge" style="background: #eee; padding: 2px 8px; border: 1px solid #000; font-size: 0.8rem; font-weight: bold;">
+                          {{ game.view_count }} Views
+                         </span>
+                    </div>
                     <a href="{{ url_for('game_detail', game_id=game.id) }}" class="btn comic-btn-store mt-2">View Game</a>
                 </div>
             </div>
