@@ -5,12 +5,19 @@ from werkzeug.utils import secure_filename
 from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user,login_required
 from werkzeug.security import check_password_hash, generate_password_hash
 import stripe #juicy money XD
+from dotenv import load_dotenv
+
+
+# Stripe API Keys.
+load_dotenv()
 
 app= Flask(__name__)
-# Stripe API Keys. I'll do the right one later
+
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY")
+
 stripe_keys = {
-    "secret_key": "",
-    "publishable_key": "pk_test_51Tq7urB0plBfldb61oJJPeGgYj56UsC9Hey7ZRo6X2nEZo1AWSIIOPsJoGXygGP1atqO2RmO008KwqLD4eDftzH500DhpLxnY9",
+    "secret_key": os.environ.get("STRIPE_SECRET_KEY"),
+    "publishable_key": os.environ.get("STRIPE_PUBLISHABLE_KEY"),
 }
 
 stripe.api_key = stripe_keys["secret_key"]
