@@ -8,51 +8,57 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='CSS/style.css') }}">
 </head>
 <body>
-<div class="BackgroundImage" style="display: flex; flex-direction: column; align-items: center;">
-    <nav class="navbar d-flex flex-column align-items-center justify-content-center mx-auto mt-3">
-        <div class="d-flex align-items-center justify-content-center mb-3 w-100 flex-wrap gap-3">
-            {% if current_user.is_authenticated %}
-            <div class="comic-auth-box">
-                <span class="text-dark small fw-bold">USER:</span>
-                <span class="comic-username">{{ current_user.username }}</span>
-                <span class="comic-role">{{ current_user.role }}</span>
+
+<div class="BackgroundImage" style="display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative;">
+    <div class="user-hud">
+        {% if current_user.is_authenticated %}
+        <div class="d-flex align-items-center gap-2">
+            <img src="{{ url_for('static', filename=current_user.profile_image) }}" class="hud-avatar">
+            <div class="d-flex flex-column">
+                <span class="hud-username">{{ current_user.username }}</span>
+                <span class="hud-role">{{ current_user.role }}</span>
             </div>
-            <a href="/logout" class="comic-logout-btn m-0">BYE!</a>
-            {% else %}
+            <a href="/logout" class="hud-btn-bye">BYE!</a>
+        </div>
+        {% else %}
+        <a href="/login" class="NavBar">LOGIN</a>
+        {% endif %}
+    </div>
+    <nav class="navbar d-flex flex-column align-items-center justify-content-center mx-auto mb-5">
+        <div class="d-flex align-items-center justify-content-center mb-3 w-100 flex-wrap gap-3">
+            {% if not current_user.is_authenticated %}
             <a href="/login" class="NavBar m-0" style="background: #4caf50;">Login</a>
             <a href="/register" class="NavBar m-0" style="background: #9e9e9e;">Sign Up</a>
             {% endif %}
         </div>
         <div class="navbarContent d-flex justify-content-center align-items-center flex-wrap gap-3 m-0 w-100">
-            <a class="NavBar m-0" href="/">Home</a>
+            <a class="NavBar" href="/">Home</a>
             <a class="NavBar" href="/store">Store</a>
             <a class="NavBar" href="/community">COMMUNITY</a>
             <a class="NavBar" href="/help">HELP</a>
         </div>
     </nav>
 
-    <div class="container-fluid pb-5 text-center pt-5">
-        <div class="dropdown">
-            <button class="btn dropdown-toggle fs-1 comic-dropdown-btn border-0" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
-                Sqush
-            </button>
-            <ul class="dropdown-menu text-center comic-dropdown-menu" aria-labelledby="dropdownMenuButton">
-                {% if current_user.is_authenticated %}
-                <li><a class="dropdown-item comic-dropdown-item" href="{{ url_for('profile', username=current_user.username) }}">My profile</a></li>
-                {% endif %}
-                <li><a class="dropdown-item comic-dropdown-item" href="{{ url_for('library') }}">Library</a></li>
-                {% if current_user.is_authenticated and current_user.role == 'dev' %}
-                <li><a class="dropdown-item comic-dropdown-item text-danger" href="/dashboard">Dev Dashboard</a></li>
-                {% endif %}
-            </ul>
-        </div>
+    <div class="dropdown">
+        <button class="btn dropdown-toggle fs-1 comic-dropdown-btn border-0" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+            Sqush
+        </button>
+        <ul class="dropdown-menu text-center comic-dropdown-menu" aria-labelledby="dropdownMenuButton">
+            {% if current_user.is_authenticated %}
+            <li><a class="dropdown-item comic-dropdown-item" href="{{ url_for('profile', username=current_user.username) }}">My profile</a></li>
+            {% endif %}
+            <li><a class="dropdown-item comic-dropdown-item" href="{{ url_for('library') }}">Library</a></li>
+            {% if current_user.is_authenticated and current_user.role == 'dev' %}
+            <li><a class="dropdown-item comic-dropdown-item text-danger" href="/dashboard">Dev Dashboard</a></li>
+            {% endif %}
+        </ul>
     </div>
 </div>
 
 <div class="container py-5">
     <div class="row justify-content-center mb-5">
         <div class="col-md-8">
-            <div class="filter-panel" style="background: #2196f3;">
+            <div class="filter-panel">
                 <label class="filter-label text-center fs-4 mb-3">Find your next game!</label>
                 <input type="text" id="gameSearch" class="form-control form-control-lg filter-input p-3 fs-4" placeholder="SEARCH GAMES...">
             </div>
@@ -76,7 +82,7 @@
                     {% endif %}
                     {% endif %}
                     <a href="{{ url_for('game_detail', game_id=game.id) }}" class="text-decoration-none">
-                    <img src="{{ url_for('static', filename=game.image_path) }}" alt="{{ game.title }}" class="w-100 h-100" style="object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1;">
+                        <img src="{{ url_for('static', filename=game.image_path) }}" alt="{{ game.title }}" class="w-100 h-100" style="object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1;">
                     </a>
                 </div>
                 <div class="p-4 text-center">

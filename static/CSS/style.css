@@ -422,3 +422,44 @@ a {
     background: #000;
     color: #fff ;
 }
+.user-hud {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: #fff;
+    border: 3px solid #000;
+    padding: 10px;
+    box-shadow: 6px 6px 0px #000;
+    z-index: 1000;
+}
+
+.hud-avatar {
+    width: 40px;
+    height: 40px;
+    border: 2px solid #000;
+    border-radius: 50%;
+}
+
+.hud-username {
+    font-weight: 900;
+    background: #ffeb3b;
+    padding: 0 5px;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+}
+
+.hud-role {
+    font-size: 0.7rem;
+    color: #e91e63;
+    font-weight: bold;
+}
+
+.hud-btn-bye {
+    background: #ff5722;
+    border: 2px solid #000;
+    color: #fff;
+    font-weight: 900;
+    padding: 2px 8px;
+    text-decoration: none;
+    margin-left: 10px;
+}
