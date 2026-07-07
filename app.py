@@ -27,7 +27,6 @@ def inject_models():
     return dict(Screenshot=Screenshot, Video=Video)
 
 #secruity first huh? and then the Database
-app.config["SECRET_KEY"] = "super-secret-sqush-key-change-this-later" # Great Name isn't it xD
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///db.sqlite3"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
