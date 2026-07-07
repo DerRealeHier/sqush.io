@@ -9,7 +9,7 @@ import stripe #juicy money XD
 app= Flask(__name__)
 # Stripe API Keys. I'll do the right one later
 stripe_keys = {
-    "secret_key": "Ain't giving you my secret",
+    "secret_key": "",
     "publishable_key": "pk_test_51Tq7urB0plBfldb61oJJPeGgYj56UsC9Hey7ZRo6X2nEZo1AWSIIOPsJoGXygGP1atqO2RmO008KwqLD4eDftzH500DhpLxnY9",
 }
 
