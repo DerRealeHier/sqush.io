@@ -44,6 +44,8 @@ a {
     box-shadow: 0 8px 0px #000;
     overflow: hidden;
     image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: pixelated;
     image-rendering: crisp-edges;
 }
 
@@ -85,6 +87,34 @@ a {
 }
 
 
+.NavBar-login {
+    background: #4caf50;
+}
+
+.NavBar-signup {
+    background: #9e9e9e;
+}
+
+
+.bg-image-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+
+.price-strikethrough {
+    font-size: 1.1rem;
+}
+
+
+.filter-check-label {
+    cursor: pointer;
+    text-shadow: none;
+}
+
+
 .comic-auth-box {
     background: #fff;
     border: 3px solid #000;
@@ -93,6 +123,16 @@ a {
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+
+.comic-auth-box.msg-yellow {
+    background: #ffeb3b;
+}
+
+.comic-auth-box.msg-pink {
+    background: #e91e63;
+    color: #fff;
 }
 
 .comic-username {
@@ -170,6 +210,16 @@ a {
 }
 
 
+.notif-dropdown-menu {
+    width: 250px;
+}
+
+.notif-link {
+    text-decoration: none;
+    color: inherit;
+}
+
+
 .home-sale-title, .SaleBanner h1 {
     color: #fff ;
     font-size: 3rem;
@@ -210,6 +260,19 @@ a {
 .home-card-img-wrapper, .game-img-wrapper {
     border-bottom: 4px solid #000;
     position: relative;
+    height: 220px;
+    overflow: hidden;
+}
+
+
+.game-cover-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
 }
 
 .comic-card-title {
@@ -340,6 +403,7 @@ a {
 .game-video {
     width: 100%;
     height: 100%;
+    object-fit: cover;
     border: 0;
     position: absolute;
     top: 0;
@@ -449,6 +513,7 @@ a {
     height: 40px;
     border: 2px solid #000;
     border-radius: 50%;
+    object-fit: cover;
 }
 
 .hud-username {
