@@ -25,7 +25,6 @@
                 <input type="number" step="0.01" name="price" class="form-control" value="{{ game.price }}" required>
             </div>
 
-            <!-- Sale-Bereich korrigiert -->
             <div class="p-3 mb-3 border border-dark" style="background: #252525;">
                 <div class="form-check form-switch mb-2">
                     <input type="checkbox" name="is_on_sale" class="form-check-input" id="saleSwitch" {% if game.is_on_sale %}checked{% endif %}>
@@ -33,6 +32,10 @@
                 </div>
                 <label>Discount (%)</label>
                 <input type="number" name="discount_percent" class="form-control" value="{{ game.discount_percent }}" min="0" max="99">
+            </div>
+            <div class="mb-3">
+                <label>Sale End Date</label>
+                <input type="datetime-local" name="sale_end_date" class="form-control" >
             </div>
 
             <div class="mb-3">

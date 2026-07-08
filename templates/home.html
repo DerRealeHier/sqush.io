@@ -96,6 +96,11 @@
                          {{ game.view_count }} Views
                         </span>
                     </div>
+                    {% if game.is_on_sale and game.sale_end_date%}
+                    <div class="timer text-bg-danger" data-end="{{ game.sale_end_date.strftime('%Y-%m-%dT%H:%M:%S') }}">
+                        Ends in: <span class="countdown"></span>
+                    </div>
+                    {% endif %}
                     <a href="{{ url_for('game_detail', game_id=game.id) }}" class="btn comic-btn-store mt-2">Buy Now!</a>
                 </div>
             </div>

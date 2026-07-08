@@ -24,6 +24,7 @@ h1, h2, h3 {
     text-transform: uppercase;
     font-size: 0.7rem;
     display: inline-block;
+    color: black;
     box-shadow: 2px 2px 0px #000;
 }
 

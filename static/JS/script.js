@@ -4,22 +4,47 @@ document.addEventListener('DOMContentLoaded', () => {
     fetch("/config")
         .then((result) => result.json())
         .then((data) => {
-            const stripe = Stripe(data.publicKey); // Jetzt ist Stripe definiert!
+            const stripe = Stripe(data.publicKey);
 
             document.querySelector("#submitBtn").addEventListener("click", (e) => {
                 e.preventDefault();
-                document.querySelector("#submitBtn").addEventListener("click", (e) => {
-                    const gameId = e.target.getAttribute("data-game-id");
-
-                    fetch(`/create-checkout-session/${gameId}`)
-                        .then((result) => { return result.json(); })
-                        .then((data) => {
-                            return stripe.redirectToCheckout({ sessionId: data.sessionId });
-                        })
-                        .catch((err) => { console.error("Stripe Fehler:", err); });
-                });
+                const gameId = e.target.getAttribute("data-game-id");
+                fetch(`/create-checkout-session/${gameId}`)
+                    .then((result) => result.json())
+                    .then((data) => {
+                        return stripe.redirectToCheckout({ sessionId: data.sessionId });
+                    })
+                    .catch((err) => { console.error("Stripe Fehler:", err); });
             });
         });
+    const timerElements = document.querySelectorAll(".timer");
+    timerElements.forEach(timerElement => {
+        const dateStr = timerElement.getAttribute("data-end");
+        if (!dateStr) return; // Überspringen, wenn kein Datum da ist
+
+        const endDate = new Date(dateStr).getTime();
+
+        const interval = setInterval(() => {
+            const now = new Date().getTime();
+            const distance = endDate - now;
+
+            if (distance < 0) {
+                clearInterval(interval);
+                timerElement.innerHTML = "SALE ENDED";
+                return;
+            }
+
+            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            const display = timerElement.querySelector(".countdown");
+            if (display) {
+                display.innerHTML = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+            }
+        }, 1000);
+    });
 });
 
 let players = {};
@@ -35,6 +60,24 @@ function onYouTubeIframeAPIReady() {
         });
     });
 }
+// My timer
+document.querySelectorAll(".timer").forEach(timerElement => {
+    const endDate = new Date(timerElement.dataset.end).getTime();
+
+    setInterval(() => {
+        const now = new Date().getTime();
+        const distance = endDate -now;
+
+        const hours = Math.floor((distance % (1000 * 60 * 60 *24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((distance % (1000 * 60 *60)) / (1000 * 60));
+        const seconds = Math.floor((distance % (1000 *60)) / 1000);
+
+        timerElement.querySelector(".countdown").innerHTML = hours + "h " + minutes + "m " +seconds + "s ";
+        if (distance < 0) {
+            timerElement.innerHTML = "SALE ENDED";
+        }
+    }, 1000)
+});
 
 document.addEventListener('DOMContentLoaded', function() {
     // Searchfunction for home

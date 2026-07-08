@@ -8,7 +8,7 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, curren
 from werkzeug.security import check_password_hash, generate_password_hash
 import stripe #juicy money XD
 from dotenv import load_dotenv
-
+from datetime import datetime, timezone
 
 # Stripe API Keys.
 load_dotenv()
@@ -97,6 +97,7 @@ class Game(db.Model):
     download_path = db.Column(db.String(250),nullable = False) #Better be able to find it
     is_on_sale = db.Column(db.Boolean, default = False)
     discount_percent = db.Column(db.Integer, default = 0) #Give them those 2%
+    sale_end_date = db.Column(db.DateTime, nullable = True) #Can't keep on forever xD
 
     #My Foreign Key (:
     developer_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable = False)
@@ -133,6 +134,25 @@ def save_file(file):
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
         return f"uploads/{filename}"
     return None
+def check_sales_expiry():
+    now = datetime.now(timezone.utc)
+    # Hole nur aktive Sales
+    sales_to_check = Game.query.filter(Game.is_on_sale == True, Game.sale_end_date != None).all()
+    changed = False
+
+    for game in sales_to_check:
+        db_date = game.sale_end_date
+        if db_date.tzinfo is None:
+            db_date = db_date.replace(tzinfo=timezone.utc)
+        if db_date < now:
+            game.is_on_sale = False
+            game.discount_percent = 0
+            game.sale_end_date = None
+            changed = True
+            print(f"DEBUG: Sale for {game.title} expired.")
+
+    if changed:
+        db.session.commit()
 
 #authentication routes.
 @app.route("/register", methods = ["GET", "POST"])
@@ -233,15 +253,11 @@ def purchase(game_id):
 #This is for the home Page.
 @app.route("/")
 def home():
+    check_sales_expiry() #checking
     sale_games = Game.query.filter_by(is_on_sale=True).all()
 
     for game in sale_games:
-        game.tags_json = json.dumps([t.strip().lower() for t in game.tags.split(",")]) if game.tags else "[]"
-
-        if game.is_on_sale == True and game.discount_percent > 0:
-            game.display_price = game.price * (1 - game.discount_percent / 100)
-        else:
-            game.display_price = game.price
+        game.display_price = game.price * (1 - game.discount_percent / 100)
 
     return render_template('home.html', sale_games=sale_games)
 
@@ -403,6 +419,16 @@ def developer_dashboard():
     if current_user.role != "dev":
         return "Access Denied: Better Luck next time (:", 403
 
+    sale_end_date = None
+    if request.method == "POST":#
+        sale_end_date_str = request.form.get("sale_end_date")
+        if sale_end_date_str:
+            try:
+                sale_end_date = datetime.strptime(sale_end_date_str, "%Y-%m-%dT%H:%M")
+            except ValueError:
+                sale_end_date = None
+
+
     if request.method == "POST":
         title = request.form["title"]
         genre = request.form["genre"]
@@ -437,7 +463,7 @@ def developer_dashboard():
 
         new_game = Game(title=title, genre=genre, priority=priority, tags=tags, price=price,
                         image_path=image_path, video_path=video_path, description=description,
-                        download_path=download_path, is_on_sale=is_on_sale,
+                        download_path=download_path, is_on_sale=is_on_sale, sale_end_date=sale_end_date,
                         discount_percent=discount_percent, developer_id=current_user.id)
 
         db.session.add(new_game)
