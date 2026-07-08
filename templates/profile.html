@@ -47,6 +47,7 @@
             {% endif %}
             {% elif request.status == 'accepted' %}
             <button class="btn btn-info btn-comic" disabled>FRIENDS! :D</button>
+            <a href="{{ url_for('unfollow', username=user.username) }}" class="btn btn-danger">Don't be frieds anymore ):</a>
             {% endif %}
             {% endif %}
             <div class="mt-3">

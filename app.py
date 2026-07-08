@@ -228,12 +228,17 @@ def follow(username):
 @app.route('/unfollow/<username>')
 @login_required
 def unfollow(username):
-    user= User.query.filter_by(username=username).first()
-    if user and user != current_user:
-        current_user.followed.remove(user)
-        db.session.commit()
+    user = User.query.filter_by(username=username).first()
+    if user:
+        #finding if they are even friends. Better be!
+        friendship = Friendship.query.filter(
+            ((Friendship.sender_id == current_user.id) & (Friendship.receiver_id == user.id)) |
+            ((Friendship.sender_id == user.id) & (Friendship.receiver_id == current_user.id))
+        ).first()
+        if friendship:
+            db.session.delete(friendship)
+            db.session.commit()
     return redirect(url_for('profile', username=username))
-
 @app.route("/increment_view/<int:game_id>", methods = ["POST"])
 def increment_view(game_id):
     game = Game.query.get_or_404(game_id)
