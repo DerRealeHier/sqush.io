@@ -103,6 +103,7 @@ class Notification(db.Model):
     message = db.Column(db.String(250), nullable=False)
     type = db.Column(db.String(50))
     is_read = db.Column(db.Boolean, default = False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user = db.relationship("User" , backref="notifications")
 
 
@@ -123,7 +124,7 @@ class Game(db.Model):
     is_on_sale = db.Column(db.Boolean, default = False)
     discount_percent = db.Column(db.Integer, default = 0) #Give them those 2%
     sale_end_date = db.Column(db.DateTime, nullable = True) #Can't keep on forever xD
-
+    reviews = db.relationship("Review", backref="game", lazy=True)
     #My Foreign Key (:
     developer_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable = False)
 
@@ -143,12 +144,21 @@ class Video(db.Model):
     game_id = db.Column(db.Integer, db.ForeignKey("game.id"), nullable = False)
     video_path = db.Column(db.String(250), nullable = False)
 
+class Review(db.Model):
+    id = db.Column(db.Integer, primary_key = True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    game_id = db.Column(db.Integer, db.ForeignKey("game.id"), nullable=False)
+    is_positive = db.Column(db.Boolean, nullable = False)
+    comment = db.Column(db.Text, nullable = True)
+    user = db.relationship("User", backref="reviews")
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
 #initilaize the Database
 with app.app_context():
+    print("DEBUG: Prüfe Notification Table Spalten")
     db.create_all()
 
 #our lovely routes xD
@@ -249,6 +259,27 @@ def follow(username):
         current_user.followed.append(user)
         db.session.commit()
     return redirect(url_for('profile', username=username))
+
+@app.route("/rate_game/<int:game_id>", methods = ["POST"])
+@login_required
+def rate_game(game_id):
+    rating = request.form.get("rating") # "1" for good; "0" for bad
+    comment = request.form.get("comment")
+    existing = Review.query.filter_by(user_id=current_user.id, game_id=game_id).first()
+
+    if existing:
+        existing.is_positive = (rating == "1")
+        existing.comment = comment #update comment
+    else:
+        new_review = Review(user_id=current_user.id, game_id=game_id, is_positive=(rating == 1),
+                            comment=comment)
+
+        db.session.add(new_review)
+
+
+    db.session.commit()
+    return redirect(url_for("game_detail", game_id=game_id))
+
 
 @app.route('/unfollow/<username>')
 @login_required
