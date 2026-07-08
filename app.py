@@ -12,11 +12,8 @@ from datetime import datetime, timezone
 
 # Stripe API Keys.
 load_dotenv()
-
 app= Flask(__name__)
-
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY")
-
 stripe_keys = {
     "secret_key": os.environ.get("STRIPE_SECRET_KEY"),
     "publishable_key": os.environ.get("STRIPE_PUBLISHABLE_KEY"),
@@ -31,8 +28,23 @@ def allowed_file(filename):
         filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.context_processor
-def inject_models():
-    return dict(Screenshot=Screenshot, Video=Video, Friendship=Friendship)
+def inject_global_data():
+    data= {
+        "Screenshot": Screenshot,
+        "Video": Video,
+        "Friendship": Friendship
+    }
+    if current_user.is_authenticated:
+        try:
+            unread_count = Notification.query.filter_by(user_id=current_user.id, is_read=False).count()
+            data["unread_count"] = unread_count
+        except Exception as e:
+            print(f"DEBUG: Notification Fehler: {e}")
+            data["unread_count"] = 0
+    else:
+        data["unread_count"] = 0
+
+    return data
 
 #secruity first huh? and then the Database
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///db.sqlite3"
@@ -71,13 +83,11 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(128), nullable=False, unique=True) #trash-mails must be allowed
     password_hash = db.Column(db.String(250), nullable=False) #Quantum Computers shall fall
     role = db.Column(db.String(20), default="user") #you should be the dev
-    #onlyfriends
-    #followed = db.relationship("User", secondary=friends,
-       # primaryjoin=(friends.c.user_id == id),
-       # secondaryjoin=(friends.c.friend_id == id),
-       # backref=db.backref('followers', lazy='dynamic'), lazy='dynamic'
-    #)
-
+    followed = db.relationship("User", secondary = Friendship.__table__,
+                               primaryjoin = (Friendship.sender_id == id),
+                               secondaryjoin=(Friendship.receiver_id == id),
+                               backref="followers", lazy="dynamic"
+                               )
     #linking more than just one game
     games = db.relationship("Game", backref="user", lazy=True)
 
@@ -86,6 +96,14 @@ class User(UserMixin, db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+class Notification(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False) #Who needs Info?
+    message = db.Column(db.String(250), nullable=False)
+    type = db.Column(db.String(50))
+    is_read = db.Column(db.Boolean, default = False)
+    user = db.relationship("User" , backref="notifications")
 
 
 #Database Model for the games
@@ -169,6 +187,13 @@ def send_request(user_id):
     if not existing:
         req = Friendship(sender_id=current_user.id, receiver_id=user_id, status="pending")
         db.session.add(req)
+        #adding those notifications
+        notif = Notification(
+            user_id=user_id,
+            message=f"{current_user.username} wants to be friends (;",
+            type="fried_request"
+        )
+        db.session.add(notif)
         db.session.commit()
     return redirect(url_for("profile", username=User.query.get(user_id).username))
 
@@ -246,6 +271,25 @@ def increment_view(game_id):
     db.session.commit()
     return jsonify({"status": "success", "views": game.view_count})
 
+
+@app.route("/notification/read/<int:notif_id>")
+@login_required
+def read_notification(notif_id):
+    notif = Notification.query.get_or_404(notif_id)
+    #Is it really the notification of the user?
+    if notif.user_id == current_user.id:
+        notif.is_read = True
+        db.session.commit()
+    if notif.type == "fried_request":
+        sender_name = notif.message.split(" ")[0]
+        sender = User.query.filter_by(username=sender_name).first()
+        if sender:
+            return redirect(url_for('profile', username=sender.username))
+
+    return redirect(url_for("profile", username=current_user.username))
+
+
+
 @app.route("/update_profile", methods=["POST"])
 @login_required
 def update_profile():
@@ -263,7 +307,12 @@ def update_profile():
 @login_required
 def profile(username):
     target_user = User.query.filter_by(username=username).first_or_404()
-    return render_template("profile.html", user=target_user)
+    friend_request = Friendship.query.filter(
+        ((Friendship.sender_id == current_user.id) & (Friendship.receiver_id == target_user.id)) |
+        ((Friendship.sender_id == target_user.id)) & (Friendship.receiver_id == current_user.id)
+    )
+    return render_template("profile.html", user=target_user,friend_request=friend_request)
+
 #You shouldn't even wanna do this. 🤬
 @app.route("/logout")
 @login_required
