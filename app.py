@@ -32,7 +32,7 @@ def allowed_file(filename):
 
 @app.context_processor
 def inject_models():
-    return dict(Screenshot=Screenshot, Video=Video)
+    return dict(Screenshot=Screenshot, Video=Video, Friendship=Friendship)
 
 #secruity first huh? and then the Database
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///db.sqlite3"
@@ -47,14 +47,21 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok = True)
 db = SQLAlchemy(app)
 
-friends = db.Table('friends',
-    db.Column('user_id', db.Integer, db.ForeignKey('user.id')),
-    db.Column('friend_id', db.Integer, db.ForeignKey('user.id'))
-)
+
+
 
 #Initiliaze Login
 login_manager = LoginManager(app)
 login_manager.login_view = "login" #YOU BETTER LOGIN
+
+class Friendship(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    receiver_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    status = db.Column(db.String(20), default='pending')
+
+    sender = db.relationship("User", foreign_keys=[sender_id])
+    receiver = db.relationship("User", foreign_keys=[receiver_id])
 
 #Database model for my Users <)
 class User(UserMixin, db.Model):
@@ -65,11 +72,11 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(250), nullable=False) #Quantum Computers shall fall
     role = db.Column(db.String(20), default="user") #you should be the dev
     #onlyfriends
-    followed = db.relationship("User", secondary=friends,
-        primaryjoin=(friends.c.user_id == id),
-        secondaryjoin=(friends.c.friend_id == id),
-        backref=db.backref('followers', lazy='dynamic'), lazy='dynamic'
-    )
+    #followed = db.relationship("User", secondary=friends,
+       # primaryjoin=(friends.c.user_id == id),
+       # secondaryjoin=(friends.c.friend_id == id),
+       # backref=db.backref('followers', lazy='dynamic'), lazy='dynamic'
+    #)
 
     #linking more than just one game
     games = db.relationship("Game", backref="user", lazy=True)
@@ -153,6 +160,26 @@ def check_sales_expiry():
 
     if changed:
         db.session.commit()
+
+@app.route("/send_friend_request/<int:user_id>")
+@login_required
+def send_request(user_id):
+    #dont want them to spam friend request
+    existing = Friendship.query.filter_by(sender_id=current_user.id, receiver_id=user_id).first()
+    if not existing:
+        req = Friendship(sender_id=current_user.id, receiver_id=user_id, status="pending")
+        db.session.add(req)
+        db.session.commit()
+    return redirect(url_for("profile", username=User.query.get(user_id).username))
+
+@app.route("/accept_friend_request/<int:request_id>")
+@login_required
+def accept_request(request_id):
+    req = Friendship.query.get_or_404(request_id)
+    if req.receiver_id == current_user.id:
+        req.status = "accepted"
+        db.session.commit()
+    return redirect(url_for("profile", username=current_user.username))
 
 #authentication routes.
 @app.route("/register", methods = ["GET", "POST"])

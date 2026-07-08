@@ -32,14 +32,21 @@
             </form>
             {% else %}
             <div class="p-3 border border-secondary border-dashed">
-                <p class="text-muted m-0">THIS IS {{ user.username }}'S PROFILE.</p>
+                <p class="text-danger m-0">THIS IS {{ user.username }}'S PROFILE.</p>
             </div>
             {% endif %}
             {% if user.username != current_user.username %}
-            {% if not current_user.followed.filter_by(id=user.id).first() %}
-            <a href="{{ url_for('follow', username=user.username) }}" class="btn btn-success">Be friends (:</a>
+            {% set request = Friendship.query.filter(((Friendship.sender_id == current_user.id) and (Friendship.receiver_id == user.id)) or ((Friendship.sender_id == user.id) and (Friendship.receiver_id == current_user.id))).first() %}
+            {% if not request %}
+            <a href="{{ url_for('send_request', user_id=user.id) }}" class="btn btn-success btn-comic">FRIEND REQUEST (:</a>
+            {% elif request.status == 'pending' %}
+            {% if request.sender_id == current_user.id %}
+            <button class="btn btn-secondary btn-comic" disabled>WAITING...</button>
             {% else %}
-            <a href="{{ url_for('unfollow', username=user.username) }}" class="btn btn-danger">Don't be frieds anymore ):</a>
+            <a href="{{ url_for('accept_request', request_id=request.id) }}" class="btn btn-warning btn-comic">ACCEPT FRIEND!</a>
+            {% endif %}
+            {% elif request.status == 'accepted' %}
+            <button class="btn btn-info btn-comic" disabled>FRIENDS! :D</button>
             {% endif %}
             {% endif %}
             <div class="mt-3">
