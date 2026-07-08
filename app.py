@@ -481,13 +481,22 @@ def game_detail(game_id):
     game = Game.query.get_or_404(game_id)
     screenshots = Screenshot.query.filter_by(game_id=game.id).all()
     videos = Video.query.filter_by(game_id=game.id).all()
+    reviews = game.reviews
+    total_ratings = len(reviews)
+
+    if total_ratings > 0:
+        positive_count = sum(1 for r in reviews if r.is_positive)
+        average_score = (positive_count / total_ratings) * 100
+    else:
+        average_score = 0
+
     #Lets do Math (:
     if game.is_on_sale and game.discount_percent > 0:
         game.display_price = game.price * (1 - game.discount_percent / 100)
     else:
         game.display_price = game.price
 
-    return render_template("game_detail.html",game=game, screenshots=screenshots, videos=videos)
+    return render_template("game_detail.html",game=game, screenshots=screenshots, videos=videos,average_score=average_score)
 
 @app.route("/edit_game/<int:game_id>", methods = ["GET", "POST"])
 def edit_game(game_id):

@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const timerElements = document.querySelectorAll(".timer");
     timerElements.forEach(timerElement => {
         const dateStr = timerElement.getAttribute("data-end");
-        if (!dateStr) return; // Überspringen, wenn kein Datum da ist
+        if (!dateStr) return; // skip when no date
 
         const endDate = new Date(dateStr).getTime();
 
