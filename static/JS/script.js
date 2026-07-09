@@ -1,22 +1,48 @@
 console.log("Sanity check");
 
+// yea boy thats just keeping track of all the youtube instances
+let players = {};
+
+function onYouTubeIframeAPIReady() {
+    document.querySelectorAll('.yt-player-iframe').forEach(iframe => {
+        players[iframe.id] = new YT.Player(iframe.id, {
+            events: {
+                'onReady': function(event) {
+                    event.target.mute();
+                }
+            }
+        });
+    });
+}
+
+//I had two DOMContentLoader before, so I merged them into one
 document.addEventListener('DOMContentLoaded', () => {
+
+    //  Stripe checkout
     fetch("/config")
         .then((result) => result.json())
         .then((data) => {
             const stripe = Stripe(data.publicKey);
 
-            document.querySelector("#submitBtn").addEventListener("click", (e) => {
-                e.preventDefault();
-                const gameId = e.target.getAttribute("data-game-id");
-                fetch(`/create-checkout-session/${gameId}`)
-                    .then((result) => result.json())
-                    .then((data) => {
-                        return stripe.redirectToCheckout({ sessionId: data.sessionId });
-                    })
-                    .catch((err) => { console.error("Stripe Fehler:", err); });
-            });
+            const submitBtn = document.querySelector("#submitBtn");
+            // I think I fixed a bug here, not sure if it's the same as the one I had before
+            if (submitBtn) {
+                submitBtn.addEventListener("click", (e) => {
+                    e.preventDefault();
+                    const gameId = e.target.getAttribute("data-game-id");
+                    fetch(`/create-checkout-session/${gameId}`)
+                        .then((result) => result.json())
+                        .then((data) => {
+                            return stripe.redirectToCheckout({ sessionId: data.sessionId });
+                        })
+                        .catch((err) => { console.error("Stripe Fehler:", err); });
+                });
+            }
         });
+
+    // ---- Sale countdown timers ----
+    // Yea for some reason I had two timers before, and one just
+    //blew away the memory and CPU usage. Should be fixed now.
     const timerElements = document.querySelectorAll(".timer");
     timerElements.forEach(timerElement => {
         const dateStr = timerElement.getAttribute("data-end");
@@ -45,42 +71,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }, 1000);
     });
-});
 
-let players = {};
-
-function onYouTubeIframeAPIReady() {
-    document.querySelectorAll('.yt-player-iframe').forEach(iframe => {
-        players[iframe.id] = new YT.Player(iframe.id, {
-            events: {
-                'onReady': function(event) {
-                    event.target.mute();
-                }
-            }
-        });
-    });
-}
-// My timer
-document.querySelectorAll(".timer").forEach(timerElement => {
-    const endDate = new Date(timerElement.dataset.end).getTime();
-
-    setInterval(() => {
-        const now = new Date().getTime();
-        const distance = endDate -now;
-
-        const hours = Math.floor((distance % (1000 * 60 * 60 *24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((distance % (1000 * 60 *60)) / (1000 * 60));
-        const seconds = Math.floor((distance % (1000 *60)) / 1000);
-
-        timerElement.querySelector(".countdown").innerHTML = hours + "h " + minutes + "m " +seconds + "s ";
-        if (distance < 0) {
-            timerElement.innerHTML = "SALE ENDED";
-        }
-    }, 1000)
-});
-
-document.addEventListener('DOMContentLoaded', function() {
-    // Searchfunction for home
+    // ---- Searchfunction for home ----
     const gameSearch = document.getElementById('gameSearch');
     if (gameSearch) {
         gameSearch.addEventListener('input', function(e) {
@@ -108,7 +100,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Filtering for the store
+    // ---- Filtering for the store ----
     const storeSearch = document.getElementById('storeSearch');
     const genreFilter = document.getElementById('genreFilter');
     const tagFilter = document.getElementById('tagFilter');
@@ -132,11 +124,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const itemIsSale = item.getAttribute('data-sale') === 'true';
             const itemTags = JSON.parse(item.getAttribute('data-tags') || "[]");
 
-            let matchTitle = itemTitle.includes(query);
-            let matchGenre = (genre === 'all' || itemGenre === genre);
-            let matchPrice = (isNaN(maxPrice) || itemPrice <= maxPrice);
-            let matchSale = (!onlySale || itemIsSale);
-            let matchTag = (tagQuery === '' || itemTags.some(t => t.includes(tagQuery)));
+            const matchTitle = itemTitle.includes(query);
+            const matchGenre = (genre === 'all' || itemGenre === genre);
+            const matchPrice = (isNaN(maxPrice) || itemPrice <= maxPrice);
+            const matchSale = (!onlySale || itemIsSale);
+            const matchTag = (tagQuery === '' || itemTags.some(t => t.includes(tagQuery)));
 
             if (matchTitle && matchGenre && matchPrice && matchSale && matchTag) {
                 item.classList.remove('d-none');
@@ -163,7 +155,7 @@ document.addEventListener('DOMContentLoaded', function() {
         saleFilter.addEventListener('change', filterGames);
     }
 
-    // Hover for home and store
+    // Hover-to-preview video for home and store cards
     document.querySelectorAll('.game-card, .home-sale-card').forEach(card => {
         const videoType = card.getAttribute('data-video-type');
         if (!videoType || videoType === 'none') return;

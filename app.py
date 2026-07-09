@@ -2,9 +2,8 @@ import json
 import os
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.testing.pickleable import User
 from werkzeug.utils import secure_filename
-from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user,login_required
+from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
 from werkzeug.security import check_password_hash, generate_password_hash
 import stripe #juicy money XD
 from dotenv import load_dotenv
@@ -103,7 +102,8 @@ class Notification(db.Model):
     message = db.Column(db.String(250), nullable=False)
     type = db.Column(db.String(50))
     is_read = db.Column(db.Boolean, default = False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    # yeah it wasnt aware of time-zones before. Happens xD
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     user = db.relationship("User" , backref="notifications")
 
 
@@ -154,7 +154,8 @@ class Review(db.Model):
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    # Always had these messages that Query.get is legacy. so I changed it.
+    return db.session.get(User, int(user_id))
 
 #initilaize the Database
 with app.app_context():
@@ -163,12 +164,22 @@ with app.app_context():
 
 #our lovely routes xD
 
-def save_file(file):
+def save_file(file, folder=None):
+    #the save logic is not duplicated anymore
+    target_folder = folder or app.config['UPLOAD_FOLDER']
     if file and file.filename:
         filename = secure_filename(file.filename)
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        return f"uploads/{filename}"
+        file.save(os.path.join(target_folder, filename))
+        relative_folder = os.path.basename(target_folder)
+        return f"{relative_folder}/{filename}"
     return None
+
+def calculate_display_price(game):
+    #I had this in like all functions. Now I have an own one for it.
+    if game.is_on_sale and game.discount_percent > 0:
+        return game.price * (1 - game.discount_percent / 100)
+    return game.price
+
 def check_sales_expiry():
     now = datetime.now(timezone.utc)
     # Hole nur aktive Sales
@@ -194,7 +205,8 @@ def check_sales_expiry():
 def send_request(user_id):
     #dont want them to spam friend request
     existing = Friendship.query.filter_by(sender_id=current_user.id, receiver_id=user_id).first()
-    if not existing:
+    target_user = db.session.get(User, user_id)
+    if not existing and target_user:
         req = Friendship(sender_id=current_user.id, receiver_id=user_id, status="pending")
         db.session.add(req)
         #adding those notifications
@@ -205,7 +217,7 @@ def send_request(user_id):
         )
         db.session.add(notif)
         db.session.commit()
-    return redirect(url_for("profile", username=User.query.get(user_id).username))
+    return redirect(url_for("profile", username=target_user.username))
 
 @app.route("/accept_friend_request/<int:request_id>")
 @login_required
@@ -271,7 +283,8 @@ def rate_game(game_id):
         existing.is_positive = (rating == "1")
         existing.comment = comment #update comment
     else:
-        new_review = Review(user_id=current_user.id, game_id=game_id, is_positive=(rating == 1),
+        # before it compared a String with an Int so it was always false.
+        new_review = Review(user_id=current_user.id, game_id=game_id, is_positive=(rating == "1"),
                             comment=comment)
 
         db.session.add(new_review)
@@ -295,6 +308,7 @@ def unfollow(username):
             db.session.delete(friendship)
             db.session.commit()
     return redirect(url_for('profile', username=username))
+
 @app.route("/increment_view/<int:game_id>", methods = ["POST"])
 def increment_view(game_id):
     game = Game.query.get_or_404(game_id)
@@ -338,11 +352,12 @@ def update_profile():
 @login_required
 def profile(username):
     target_user = User.query.filter_by(username=username).first_or_404()
+    # there was some unique bug
     friend_request = Friendship.query.filter(
         ((Friendship.sender_id == current_user.id) & (Friendship.receiver_id == target_user.id)) |
-        ((Friendship.sender_id == target_user.id)) & (Friendship.receiver_id == current_user.id)
-    )
-    return render_template("profile.html", user=target_user,friend_request=friend_request)
+        ((Friendship.sender_id == target_user.id) & (Friendship.receiver_id == current_user.id))
+    ).first()
+    return render_template("profile.html", user=target_user, friend_request=friend_request)
 
 #You shouldn't even wanna do this. 🤬
 @app.route("/logout")
@@ -369,7 +384,7 @@ def home():
     sale_games = Game.query.filter_by(is_on_sale=True).all()
 
     for game in sale_games:
-        game.display_price = game.price * (1 - game.discount_percent / 100)
+        game.display_price = calculate_display_price(game)
 
     return render_template('home.html', sale_games=sale_games)
 
@@ -378,8 +393,9 @@ def home():
 def library():
     #What did the user already buy? Money go brrr xD
     purchases = Purchase.query.filter_by(user_id=current_user.id).all()
-    #get those game objects
-    owned_games = [Game.query.get(p.game_id) for p in purchases]
+    # Optimized it
+    game_ids = [p.game_id for p in purchases]
+    owned_games = Game.query.filter(Game.id.in_(game_ids)).all()
     return render_template("library.html", games=owned_games)
 
 @app.route("/community", methods=["GET","POST"])
@@ -396,10 +412,7 @@ def community():
 @app.route("/buy/<int:game_id>", methods = ["GET", "POST"])
 def buy(game_id):
     game = Game.query.get_or_404(game_id)
-    if game.is_on_sale and game.discount_percent > 0:
-        game.display_price = game.price * (1 - game.discount_percent / 100)
-    else:
-        game.display_price = game.price
+    game.display_price = calculate_display_price(game)
     return render_template("buy.html", game=game)
 
 #Store Page
@@ -411,10 +424,7 @@ def store_front():
     for game in all_games: #while true loop would be great here (; The performance would go crazy
         tags = [t.strip().lower() for t in game.tags.split(",")] if game.tags else []
         game.tags_json = json.dumps(tags)
-        if game.is_on_sale == True and game.discount_percent > 0:
-            game.display_price = game.price * (1 - game.discount_percent / 100)
-        else:
-            game.display_price = game.price
+        game.display_price = calculate_display_price(game)
 
         if game.genre not in games_by_genre:
             games_by_genre[game.genre] = []
@@ -427,7 +437,7 @@ def create_checkout_session(game_id):
     game = Game.query.get_or_404(game_id)
     stripe.api_key = stripe_keys["secret_key"]
 
-    display_price = game.price * (1 - game.discount_percent / 100) if game.is_on_sale else game.price
+    display_price = calculate_display_price(game)
     unit_amount = int(display_price * 100)
 
     try:
@@ -466,7 +476,9 @@ def success(game_id):
     return render_template("success.html", game=game)
 
 @app.route("/remove_purchase/<int:game_id>", methods=["POST"])
+@login_required
 def remove_purchase(game_id):
+    #forgot login required
     purchase = Purchase.query.filter_by(user_id=current_user.id, game_id=game_id).first()
 
     if purchase:
@@ -491,15 +503,15 @@ def game_detail(game_id):
         average_score = 0
 
     #Lets do Math (:
-    if game.is_on_sale and game.discount_percent > 0:
-        game.display_price = game.price * (1 - game.discount_percent / 100)
-    else:
-        game.display_price = game.price
+    game.display_price = calculate_display_price(game)
 
     return render_template("game_detail.html",game=game, screenshots=screenshots, videos=videos,average_score=average_score)
 
 @app.route("/edit_game/<int:game_id>", methods = ["GET", "POST"])
+@login_required
 def edit_game(game_id):
+    #yea for some reason anonymus visitors could just edit any game.
+    #should be fixed now.
     game = Game.query.get_or_404(game_id)
     if current_user.role != "dev":
         return "Access Denied. How could you?", 403
@@ -529,10 +541,12 @@ def edit_game(game_id):
         db.session.commit()
         return redirect(url_for("developer_dashboard"))
     return render_template("edit_game.html",game=game)
+
 @app.route("/config")
 def get_publishable_key():
     stripe_config = {"publicKey": stripe_keys["publishable_key"]}
     return jsonify(stripe_config)
+
 #It's a dev panel now ):
 @app.route("/dashboard", methods=["GET" , "POST"])
 @login_required
@@ -540,8 +554,9 @@ def developer_dashboard():
     if current_user.role != "dev":
         return "Access Denied: Better Luck next time (:", 403
 
-    sale_end_date = None
-    if request.method == "POST":#
+    if request.method == "POST":
+        #merged the block together
+        sale_end_date = None
         sale_end_date_str = request.form.get("sale_end_date")
         if sale_end_date_str:
             try:
@@ -549,8 +564,6 @@ def developer_dashboard():
             except ValueError:
                 sale_end_date = None
 
-
-    if request.method == "POST":
         title = request.form["title"]
         genre = request.form["genre"]
         priority = request.form.get("priority", "normal")
@@ -601,7 +614,7 @@ def developer_dashboard():
 
     my_games = Game.query.filter_by(developer_id=current_user.id).all()
     for game in my_games:
-        game.display_price = game.price * (1 - game.discount_percent / 100) if game.is_on_sale else game.price
+        game.display_price = calculate_display_price(game)
     return render_template("admin.html", games=my_games)
 
 if __name__ == "__main__":

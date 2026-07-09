@@ -1,3 +1,4 @@
+/* Base styles and halftone background grid */
 html, body {
     background-color: #0d0d12 ;
     background-image:
@@ -12,10 +13,13 @@ html, body {
     padding: 0;
 }
 
+/* Bold uppercase headings */
 h1, h2, h3 {
     text-transform: uppercase;
     font-weight: 900;
 }
+
+/* Hard-bordered view counter badge */
 .view-count-badge {
     background: #fff;
     border: 2px solid #000;
@@ -32,6 +36,7 @@ a {
     text-decoration: none;
 }
 
+/* Main background image banner with crisp pixel rendering */
 .BackgroundImage {
     background-color: #2196f3;
     background-image: url("https://raw.githubusercontent.com/DerRealeHier/sqush.io/main/AI_generatedBackground.png");
@@ -49,7 +54,7 @@ a {
     image-rendering: crisp-edges;
 }
 
-
+/* Box container for the navbar */
 .navbar {
     background: #fff;
     border: 4px solid #000;
@@ -61,11 +66,13 @@ a {
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+/* Pop-up effect on navbar hover */
 .navbar:hover {
     transform: translate(-4px, -4px);
     box-shadow: 12px 12px 0px #000;
 }
 
+/* Base style for navbar link items */
 .NavBar {
     color: #fff ;
     font-weight: 900;
@@ -79,6 +86,7 @@ a {
     transition: all 0.2s ease;
 }
 
+/* Color swap on navbar item hover */
 .NavBar:hover {
     background: #ffeb3b;
     color: #000 ;
@@ -86,7 +94,7 @@ a {
     box-shadow: 2px 2px 0px #000;
 }
 
-
+/* Navbar color variations */
 .NavBar-login {
     background: #4caf50;
 }
@@ -95,7 +103,6 @@ a {
     background: #9e9e9e;
 }
 
-
 .bg-image-wrap {
     display: flex;
     flex-direction: column;
@@ -103,18 +110,16 @@ a {
     width: 100%;
 }
 
-
 .price-strikethrough {
     font-size: 1.1rem;
 }
-
 
 .filter-check-label {
     cursor: pointer;
     text-shadow: none;
 }
 
-
+/* User authorization layout container */
 .comic-auth-box {
     background: #fff;
     border: 3px solid #000;
@@ -125,7 +130,7 @@ a {
     gap: 8px;
 }
 
-
+/* Modifier classes for authentication container backgrounds */
 .comic-auth-box.msg-yellow {
     background: #ffeb3b;
 }
@@ -135,6 +140,7 @@ a {
     color: #fff;
 }
 
+/* Badge layout for username */
 .comic-username {
     color: #000;
     font-weight: 900;
@@ -144,6 +150,7 @@ a {
     border: 2px solid #000;
 }
 
+/* Badge layout for user roles */
 .comic-role {
     background: #e91e63;
     color: #fff;
@@ -153,6 +160,7 @@ a {
     font-size: 0.8rem;
 }
 
+/* Logout button styling and hover transition */
 .comic-logout-btn {
     background: #ff5722;
     color: #fff ;
@@ -175,7 +183,7 @@ a {
     transform: translate(2px, 2px);
 }
 
-
+/* Dropdown menu trigger button */
 .comic-dropdown-btn {
     text-shadow: 4px 4px 0px #000;
     font-weight: 900;
@@ -184,6 +192,7 @@ a {
     letter-spacing: 2px;
 }
 
+/* Main dropdown menu wrapper */
 .comic-dropdown-menu {
     background: #fff ;
     border: 4px solid #000 ;
@@ -192,6 +201,7 @@ a {
     padding: 0 ;
 }
 
+/* Individual list item inside dropdown */
 .comic-dropdown-item {
     font-weight: 900;
     text-transform: uppercase;
@@ -209,7 +219,6 @@ a {
     color: #000 ;
 }
 
-
 .notif-dropdown-menu {
     width: 250px;
 }
@@ -219,7 +228,7 @@ a {
     color: inherit;
 }
 
-
+/* Main promotional heading titles with double shadow */
 .home-sale-title, .SaleBanner h1 {
     color: #fff ;
     font-size: 3rem;
@@ -229,6 +238,7 @@ a {
     font-weight: 900;
 }
 
+/* Section titles for specific product categories */
 .genre-title {
     color: #ffeb3b ;
     font-size: 2rem;
@@ -241,7 +251,7 @@ a {
     padding-bottom: 5px;
 }
 
-
+/* General product grid item card containers */
 .game-card, .home-sale-card {
     background: #ffffff ;
     border: 4px solid #000000;
@@ -263,7 +273,6 @@ a {
     height: 220px;
     overflow: hidden;
 }
-
 
 .game-cover-img {
     width: 100%;
@@ -289,7 +298,7 @@ a {
     text-shadow: 1px 1px 0px #000;
 }
 
-
+/* Absolute rotated discount overlay label */
 .discount-badge {
     position: absolute;
     top: -10px;
@@ -328,7 +337,7 @@ a {
     transform: rotate(5deg);
 }
 
-
+/* Side filter sidebar panel containing controls */
 .filter-panel {
     background: #9c27b0;
     border: 4px solid #000;
@@ -361,6 +370,7 @@ a {
     outline: none;
 }
 
+/* Block style checkbox styling */
 .filter-check {
     border: 3px solid #000 ;
     background-color: #fff ;
@@ -376,7 +386,7 @@ a {
     border-color: #000 ;
 }
 
-
+/* Store primary call-to-action button */
 .comic-btn-store {
     background: #ff5722;
     color: #fff ;
@@ -399,7 +409,7 @@ a {
     box-shadow: 2px 2px 0px #000;
 }
 
-
+/* Hidden video background overlay showing on hover states */
 .game-video {
     width: 100%;
     height: 100%;
@@ -417,6 +427,8 @@ a {
 .game-card:hover .game-video, .home-sale-card:hover .game-video {
     opacity: 1 ;
 }
+
+/* Management box settings for developer views */
 .dev-panel {
     background: #4caf50;
     border: 4px solid #000;
@@ -432,7 +444,7 @@ a {
     text-transform: uppercase;
 }
 
-
+/* Grid data overview tables layout */
 .comic-table {
     background: #fff ;
     border: 4px solid #000 ;
@@ -455,7 +467,7 @@ a {
     vertical-align: middle;
 }
 
-
+/* Controls for table entry modifications (Add, Edit, Delete) */
 .btn-comic-add {
     background: #00bcd4;
     color: #000 ;
@@ -497,6 +509,8 @@ a {
     background: #000;
     color: #fff ;
 }
+
+/* Floating status panel positioned at the viewport corner */
 .user-hud {
     position: absolute;
     top: 20px;
@@ -539,6 +553,8 @@ a {
     text-decoration: none;
     margin-left: 10px;
 }
+
+/* Main inner frame layout for reviews wrapper */
 .comic-frame {
     border: 5px solid #fff;
     box-shadow: 12px 12px 0px var(--yellow);
@@ -546,6 +562,7 @@ a {
     background: var(--paper);
     position: relative;
 }
+
 .carousel-item img, .carousel-item video { height: 450px; object-fit: cover; width: 100%; border: 3px solid #fff; }
 
 .price-tag { font-family: 'Bangers', sans-serif; font-size: 2.2rem; color: var(--green); text-shadow: 2px 2px 0px #000; letter-spacing: 1px; }
@@ -553,6 +570,7 @@ a {
 
 h1 { text-transform: uppercase; font-size: 3.4rem ; text-shadow: 4px 4px 0px var(--yellow); }
 
+/* Standard custom submission buttons styling with press down effect */
 .btn-comic {
     border: 4px solid #000 ;
     box-shadow: 6px 6px 0px #000 ;
@@ -565,7 +583,7 @@ h1 { text-transform: uppercase; font-size: 3.4rem ; text-shadow: 4px 4px 0px var
 .btn-comic:hover { transform: translate(-3px, -3px); box-shadow: 9px 9px 0px #000 ; }
 .btn-comic:active { transform: translate(3px, 3px); box-shadow: 2px 2px 0px #000 ; }
 
-
+/* Textarea wrapper components inside the rating module */
 .rating-section {
     background: var(--paper);
     border: 5px solid #fff !important;
@@ -588,7 +606,7 @@ h1 { text-transform: uppercase; font-size: 3.4rem ; text-shadow: 4px 4px 0px var
 .rating-section textarea::placeholder { color: #2f7a4f; }
 .btn-comic.bg-danger { background-color: var(--red) !important; }
 
-
+/* Rotated banner for review list sections */
 .reviews-list h1 {
     transform: rotate(-2deg);
     display: inline-block;
@@ -598,7 +616,7 @@ h1 { text-transform: uppercase; font-size: 3.4rem ; text-shadow: 4px 4px 0px var
     box-shadow: 8px 8px 0px #000;
 }
 
-
+/* Review layout card with interactive slight rotation rules */
 .comic-card {
     background: var(--paper);
     border: 4px solid #fff;
@@ -611,7 +629,7 @@ h1 { text-transform: uppercase; font-size: 3.4rem ; text-shadow: 4px 4px 0px var
 .comic-card:nth-child(even) { transform: rotate(0.6deg); }
 .comic-card:hover { transform: rotate(0deg) translate(-2px,-2px); box-shadow: 13px 13px 0px #000; }
 
-
+/* Speech bubble pointer elements (after/before vectors) */
 .comic-card::after {
     content: "";
     position: absolute;
@@ -644,6 +662,7 @@ h1 { text-transform: uppercase; font-size: 3.4rem ; text-shadow: 4px 4px 0px var
     text-shadow: 2px 2px 0px #000;
 }
 
+/* Stamped status elements for reviewer choices */
 .verdict-stamp {
     font-family: 'Bangers', sans-serif;
     font-size: 1.4rem;
@@ -657,6 +676,7 @@ h1 { text-transform: uppercase; font-size: 3.4rem ; text-shadow: 4px 4px 0px var
 .verdict-stamp.positive { background: var(--green); color: #063d1f; }
 .verdict-stamp.negative { background: var(--red); color: #3d0505; }
 
+/* Terminal code style typography for specific comment contents */
 .review-font {
     font-family: 'Comic Neue', monospace;
     font-weight: 700;
@@ -669,7 +689,7 @@ h1 { text-transform: uppercase; font-size: 3.4rem ; text-shadow: 4px 4px 0px var
     margin: 0;
 }
 
-
+/* Halftone overlay pattern situated inside card corners */
 .comic-card { overflow: hidden; }
 .comic-card .halftone-corner {
     position: absolute;
