@@ -4,85 +4,257 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CONFIRM - {{ game.title }}</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.0/css/bulma.min.css">
+
+    <!-- NOTE: dropped the Bulma CDN. This is the only page in the project
+         pulling in a whole second CSS framework (the rest of the site is
+         Bootstrap per your style.css refactor), and this page is simple
+         enough to not need a framework at all — one less clash, one less
+         external request. Everything below is plain CSS, scoped to this
+         page's own classes so it can't collide with global styles. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+
     <script src="https://js.stripe.com/v3/"></script>
     <script src="{{ url_for('static', filename='JS/script.js') }}" defer></script>
 
     <style>
-        .section {
+        :root {
+            --ink: #0b0b0d;
+            --panel: #141416;
+            --paper: #f5f1e6;
+            --yellow: #ffe234;
+            --pink: #ff3b5c;
+            --line: #000000;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
             min-height: 100vh;
+            background-color: var(--ink);
+            /* Faint halftone dot texture — a comic-print detail rather than a flat background. */
+            background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1.5px, transparent 1.5px);
+            background-size: 18px 18px;
+            color: var(--paper);
+            font-family: 'Space Grotesk', sans-serif;
             display: flex;
             align-items: center;
             justify-content: center;
-        }
-        body {
-            background-color: #0d0d0d;
-            color: #fff;
-            font-family: 'Arial Black', sans-serif;
-            height: 100%;
-            margin: 0;
+            padding: 3rem 1.25rem;
         }
 
-        .comic-frame {
-            border: 5px solid #f4f4f4;
-            box-shadow: 12px 12px 0px #ffeb3b;
-            padding: 40px;
-            background: #1a1a1a;
-            margin-top: 80px;
+        .wrap {
+            width: 100%;
+            max-width: 640px;
+        }
+
+        .eyebrow {
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            color: var(--yellow);
+            margin-bottom: 0.75rem;
+        }
+
+        .headline {
+            text-align: center;
+            font-family: 'Bangers', sans-serif;
+            font-weight: 400;
+            font-size: clamp(2.75rem, 8vw, 4.5rem);
+            letter-spacing: 0.04em;
+            color: var(--yellow);
+            -webkit-text-stroke: 2px var(--line);
+            text-shadow: 4px 4px 0 var(--line);
+            margin: 0 0 1.75rem;
+            transform: rotate(-2deg);
+        }
+
+        /* The panel: this hard offset shadow is the site's existing signature
+           (kept, not reinvented) — a slight rotation makes it feel placed
+           down like a physical comic panel rather than a centered form. */
+        .comic-panel {
+            background: var(--panel);
+            border: 5px solid var(--paper);
+            box-shadow: 12px 12px 0 var(--yellow);
+            transform: rotate(-0.6deg);
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: 170px 1fr;
+            gap: 1.75rem;
+            align-items: center;
+        }
+
+        .cover {
+            position: relative;
+            aspect-ratio: 3 / 4;
+            border: 3px solid var(--line);
+            overflow: hidden;
+            background:
+                    repeating-linear-gradient(45deg, #26262a 0 10px, #201f22 10px 20px);
+        }
+
+        .cover img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .cover .cover-fallback {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem;
+            font-family: 'Bangers', sans-serif;
+            font-size: 1.1rem;
+            text-align: center;
+            color: var(--paper);
+            text-shadow: 2px 2px 0 var(--line);
+        }
+
+        /* Price sticker — like a price tag stuck on a boxed game, the one
+           deliberate "extra" element this page gets, kept everywhere else quiet. */
+        .price-tag {
+            position: absolute;
+            bottom: -14px;
+            right: -14px;
+            width: 76px;
+            height: 76px;
+            border-radius: 50%;
+            background: var(--yellow);
+            border: 3px solid var(--line);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform: rotate(-10deg);
+            box-shadow: 3px 3px 0 var(--line);
+        }
+
+        .price-tag span {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: var(--ink);
+            text-align: center;
+            line-height: 1.1;
+        }
+
+        .info p {
+            margin: 0 0 1.5rem;
+            font-size: 1.15rem;
+            line-height: 1.5;
+        }
+
+        .info strong {
+            color: var(--yellow);
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.85rem;
         }
 
         .btn-comic {
-            border: 4px solid #000 ;
-            box-shadow: 6px 6px 0px #000 ;
-            font-weight: 900;
+            font-family: 'Bangers', sans-serif;
+            font-size: 1.15rem;
+            letter-spacing: 0.03em;
             text-transform: uppercase;
-            padding: 1.5rem 2rem ;
-            transition: transform 0.1s;
+            border: 3px solid var(--line);
+            box-shadow: 5px 5px 0 var(--line);
+            padding: 0.85rem 1.5rem;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.12s ease, box-shadow 0.12s ease;
         }
 
-        .btn-comic:hover {
-            transform: translate(-2px, -2px);
+        .btn-comic:hover,
+        .btn-comic:focus-visible {
+            transform: translate(-3px, -3px);
+            box-shadow: 8px 8px 0 var(--line);
         }
 
-
-        .title {
-            color: #ffeb3b ;
-            text-transform: uppercase;
-            font-size: 3rem ;
-            text-shadow: 3px 3px 0px #fff;
+        .btn-comic:active {
+            transform: translate(0, 0);
+            box-shadow: 2px 2px 0 var(--line);
         }
 
+        .btn-comic:focus-visible {
+            outline: 3px solid var(--paper);
+            outline-offset: 2px;
+        }
 
-        .button.is-light {
-            background-color: #ddd ;
-            color: #000 ;
+        .btn-buy {
+            background: var(--yellow);
+            color: var(--ink);
+        }
+
+        .btn-cancel {
+            background: transparent;
+            color: var(--paper);
+        }
+
+        .btn-cancel:hover,
+        .btn-cancel:focus-visible {
+            background: var(--pink);
+            color: var(--ink);
+        }
+
+        @media (max-width: 560px) {
+            .comic-panel {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+            .cover { width: 140px; margin: 0 auto; }
+            .actions { justify-content: center; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .btn-comic { transition: none; }
         }
     </style>
+</head>
 <body>
 
-<section class="section">
-    <div class="container">
-        <div class="columns is-centered">
-            <div class="column is-half">
-                <div class="comic-frame has-text-centered">
-                    <h1 class="title">CONFIRM</h1>
-                    <p class="is-size-4 mb-6">Wanna buy <strong>{{ game.title }}</strong> for {{ "%.2f"|format(game.display_price) }}€?</p>
+<div class="wrap">
+    <p class="eyebrow">Sqush presents &mdash; issue #{{ game.id }}</p>
+    <h1 class="headline">Confirm</h1>
 
-                    <form id="payment-form">
-                        <div class="buttons is-centered">
-                            <button type="button" class="button is-success is-large btn-comic" id="submitBtn" data-game-id="{{ game.id }}">
-                                BUY IT!
-                            </button>
-                            <a href="{{ url_for('game_detail', game_id=game.id) }}" class="button is-light is-large btn-comic">
-                                NO, WAIT!
-                            </a>
-                        </div>
-                    </form>
-                </div>
+    <div class="comic-panel">
+        <div class="cover">
+            {% if game.image_path %}
+            <img src="{{ url_for('static', filename=game.image_path) }}" alt="{{ game.title }} cover art">
+            {% else %}
+            <div class="cover-fallback">{{ game.title }}</div>
+            {% endif %}
+            <div class="price-tag">
+                <span>{{ "%.2f"|format(game.display_price) }}&euro;</span>
+            </div>
+        </div>
+
+        <div class="info">
+            <p>Wanna buy <strong>{{ game.title }}</strong> for {{ "%.2f"|format(game.display_price) }}&euro;?</p>
+            <div class="actions">
+                <button type="button" class="btn-comic btn-buy" id="submitBtn" data-game-id="{{ game.id }}">
+                    Buy it!
+                </button>
+                <a href="{{ url_for('game_detail', game_id=game.id) }}" class="btn-comic btn-cancel">
+                    No, wait!
+                </a>
             </div>
         </div>
     </div>
-</section>
+</div>
 
 </body>
 </html>
