@@ -8,10 +8,11 @@ from werkzeug.security import check_password_hash, generate_password_hash
 import stripe #juicy money XD
 from dotenv import load_dotenv
 from datetime import datetime, timezone
+from flask_migrate import Migrate
 
 # Stripe API Keys.
 load_dotenv()
-app= Flask(__name__)
+app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY")
 stripe_keys = {
     "secret_key": os.environ.get("STRIPE_SECRET_KEY"),
@@ -150,7 +151,17 @@ class Review(db.Model):
     game_id = db.Column(db.Integer, db.ForeignKey("game.id"), nullable=False)
     is_positive = db.Column(db.Boolean, nullable = False)
     comment = db.Column(db.Text, nullable = True)
+    helpful_count = db.Column(db.Integer, default=0)
+    funny_count = db.Column(db.Integer, default=0)
     user = db.relationship("User", backref="reviews")
+    votes = db.relationship("ReviewVote", backref="review", lazy=True)
+
+class ReviewVote(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    review_id = db.Column(db.Integer, db.ForeignKey("review.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    vote_type = db.Column(db.String(10), nullable=False)  # "helpful" or "funny". SteamLike xD
+    __table_args__ = (db.UniqueConstraint('review_id', 'user_id', 'vote_type', name='unique_vote'),)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -179,6 +190,13 @@ def calculate_display_price(game):
     if game.is_on_sale and game.discount_percent > 0:
         return game.price * (1 - game.discount_percent / 100)
     return game.price
+
+#dont wanna end up with doing this several times over the code base
+#also we take the length of the review into account. It does not change it that much but you understand?
+def calculate_review_score(review):
+    text_len = len(review.comment or "")
+    length_factor = min(text_len / 200, 1.0)  # ab 200 Zeichen voller Bonus
+    return (review.helpful_count * 2) + (review.funny_count * 1) + (length_factor * 3)
 
 def check_sales_expiry():
     now = datetime.now(timezone.utc)
@@ -316,6 +334,37 @@ def increment_view(game_id):
     db.session.commit()
     return jsonify({"status": "success", "views": game.view_count})
 
+#clicking twice makes the vote disappear. Pretty basic
+@app.route("/vote_review/<int:review_id>/<vote_type>", methods=["POST"])
+@login_required
+def vote_review(review_id, vote_type):
+    if vote_type not in ("helpful", "funny"):
+        return "Invalid vote type", 400
+    review = Review.query.get_or_404(review_id)
+
+    if review.helpful_count is None:
+        review.helpful_count = 0
+    if review.funny_count is None:
+        review.funny_count = 0
+
+    existing = ReviewVote.query.filter_by(
+        review_id=review_id, user_id=current_user.id, vote_type=vote_type
+    ).first()
+    if existing:
+        db.session.delete(existing)
+        if vote_type == "helpful":
+            review.helpful_count -= 1
+        else:
+            review.funny_count -= 1
+    else:
+        db.session.add(ReviewVote(review_id=review_id, user_id=current_user.id, vote_type=vote_type))
+        if vote_type == "helpful":
+            review.helpful_count += 1
+        else:
+            review.funny_count += 1
+
+    db.session.commit()
+    return jsonify({"helpful": review.helpful_count, "funny": review.funny_count})
 
 @app.route("/notification/read/<int:notif_id>")
 @login_required
@@ -505,7 +554,7 @@ def game_detail(game_id):
     #Lets do Math (:
     game.display_price = calculate_display_price(game)
 
-    return render_template("game_detail.html",game=game, screenshots=screenshots, videos=videos,average_score=average_score)
+    return render_template("game_detail.html",game=game, screenshots=screenshots, videos=videos,average_score=average_score,reviews=reviews)
 
 @app.route("/edit_game/<int:game_id>", methods = ["GET", "POST"])
 @login_required
@@ -616,6 +665,8 @@ def developer_dashboard():
     for game in my_games:
         game.display_price = calculate_display_price(game)
     return render_template("admin.html", games=my_games)
+#Yea I need that
+migrate = Migrate(app, db)
 
 if __name__ == "__main__":
     app.run(debug = True)

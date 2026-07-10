@@ -18,6 +18,20 @@ function onYouTubeIframeAPIReady() {
 //I had two DOMContentLoader before, so I merged them into one
 document.addEventListener('DOMContentLoaded', () => {
 
+    document.querySelectorAll('.vote-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const reviewId = btn.getAttribute('data-review-id');
+            const voteType = btn.getAttribute('data-vote-type');
+            fetch(`/vote_review/${reviewId}/${voteType}`, { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    btn.closest('.card-body').querySelector('.helpful-count').textContent = data.helpful;
+                    btn.closest('.card-body').querySelector('.funny-count').textContent = data.funny;
+                })
+                .catch(err => console.error("Vote Mistake:", err));
+        });
+    });
+
     //  Stripe checkout
     fetch("/config")
         .then((result) => result.json())
