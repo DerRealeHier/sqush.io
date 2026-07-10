@@ -29,7 +29,7 @@ def allowed_file(filename):
 
 @app.context_processor
 def inject_global_data():
-    data= {
+    data = {
         "Screenshot": Screenshot,
         "Video": Video,
         "Friendship": Friendship
@@ -41,10 +41,19 @@ def inject_global_data():
         except Exception as e:
             print(f"DEBUG: Notification Fehler: {e}")
             data["unread_count"] = 0
+
+        try:
+            wishlist_ids = {w.game_id for w in Wishlist.query.filter_by(user_id=current_user.id).all()}
+            data["wishlist_ids"] = wishlist_ids
+        except Exception as e:
+            print(f"DEBUG: Wishlist Fehler: {e}")
+            data["wishlist_ids"] = set()
     else:
         data["unread_count"] = 0
+        data["wishlist_ids"] = set()
 
     return data
+
 
 #secruity first huh? and then the Database
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///db.sqlite3"
@@ -134,6 +143,16 @@ class Purchase(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     game_id = db.Column(db.Integer, db.ForeignKey("game.id"), nullable=False)
     game = db.relationship("Game", backref="purchases")
+
+class Wishlist(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    game_id = db.Column(db.Integer, db.ForeignKey("game.id"), nullable=False)
+    added_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    game = db.relationship("Game", backref="wishlisted_by")
+    user = db.relationship("User", backref="wishlist_entries")
+    # ein Spiel kann pro User nur einmal auf der Wishlist landen
+    __table_args__ = (db.UniqueConstraint('user_id', 'game_id', name='unique_wishlist'),)
 
 class Screenshot(db.Model):
     id = db.Column(db.Integer, primary_key = True)
@@ -512,6 +531,38 @@ def create_checkout_session(game_id):
         return jsonify({"sessionId": checkout_session["id"]})
     except Exception as e:
         return jsonify(error=str(e)), 403
+
+@app.route("/toggle_wishlist/<int:game_id>", methods=["POST"])
+@login_required
+def toggle_wishlist(game_id):
+    game = Game.query.get_or_404(game_id)
+
+    existing = Wishlist.query.filter_by(user_id=current_user.id, game_id=game.id).first()
+    if existing:
+        db.session.delete(existing)
+        db.session.commit()
+        return jsonify({"status": "removed", "on_wishlist": False, "count": len(game.wishlisted_by)})
+    else:
+        entry = Wishlist(user_id=current_user.id, game_id=game.id)
+        db.session.add(entry)
+        db.session.commit()
+        return jsonify({"status": "added", "on_wishlist": True, "count": len(game.wishlisted_by)})
+
+
+@app.route("/wishlist")
+@login_required
+def wishlist():
+    entries = Wishlist.query.filter_by(user_id=current_user.id).order_by(Wishlist.added_at.desc()).all()
+    games = []
+    for entry in entries:
+        game = entry.game
+        game.display_price = calculate_display_price(game)
+        # gleiche tags_json Logik wie in store_front(), fürs Anzeigen/Filtern
+        tags = [t.strip().lower() for t in game.tags.split(",")] if game.tags else []
+        game.tags_json = json.dumps(tags)
+        games.append(game)
+    return render_template("wishlist.html", games=games)
+
 
 @app.route("/success/<int:game_id>")
 @login_required

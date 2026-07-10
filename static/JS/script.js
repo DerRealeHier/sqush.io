@@ -1,8 +1,8 @@
 console.log("Sanity check");
 
-// yea boy thats just keeping track of all the youtube instances
-let players = {};
 
+let players = {};
+// yea boy thats just keeping track of all the youtube instances
 function onYouTubeIframeAPIReady() {
     document.querySelectorAll('.yt-player-iframe').forEach(iframe => {
         players[iframe.id] = new YT.Player(iframe.id, {
@@ -29,6 +29,53 @@ document.addEventListener('DOMContentLoaded', () => {
                     btn.closest('.card-body').querySelector('.funny-count').textContent = data.funny;
                 })
                 .catch(err => console.error("Vote Mistake:", err));
+        });
+    });
+
+    // ---- Wishlist Herz-Buttons (Store-Cards, Home-Cards, Detail-Seite, Wishlist-Seite) ----
+    document.querySelectorAll('.wishlist-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const gameId = btn.getAttribute('data-game-id');
+
+            fetch(`/toggle_wishlist/${gameId}`, { method: 'POST' })
+                .then(res => {
+                    if (res.status === 401 || res.redirected) {
+                        // get back to your login!
+                        window.location.href = "/login";
+                        return null;
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    if (!data) return;
+
+                    const icon = btn.querySelector('i');
+                    if (data.on_wishlist) {
+                        btn.classList.add('active');
+                        icon.classList.remove('bi-heart');
+                        icon.classList.add('bi-heart-fill');
+                    } else {
+                        btn.classList.remove('active');
+                        icon.classList.remove('bi-heart-fill');
+                        icon.classList.add('bi-heart');
+                    }
+
+                    // when deleting it from the wishlist never see it again on the page
+                    if (!data.on_wishlist && document.getElementById('wishlistGrid')) {
+                        const card = btn.closest('.wishlist-item');
+                        if (card) {
+                            card.remove();
+                            const grid = document.getElementById('wishlistGrid');
+                            if (grid && grid.querySelectorAll('.wishlist-item').length === 0) {
+                                const emptyMsg = document.getElementById('emptyWishlistMessage');
+                                if (emptyMsg) emptyMsg.classList.remove('d-none');
+                            }
+                        }
+                    }
+                })
+                .catch(err => console.error("Wishlist Fehler:", err));
         });
     });
 
@@ -169,7 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
         saleFilter.addEventListener('change', filterGames);
     }
 
-    // Hover-to-preview video for home and store cards
+    // Hover to preview video for home and store cards
     document.querySelectorAll('.game-card, .home-sale-card').forEach(card => {
         const videoType = card.getAttribute('data-video-type');
         if (!videoType || videoType === 'none') return;
