@@ -701,7 +701,11 @@ h1 { text-transform: uppercase; font-size: 3.4rem ; text-shadow: 4px 4px 0px var
     transform: rotate(20deg);
     pointer-events: none;
 }
-wishlist-btn {
+
+/* ---- Wishlist-Feature ---- */
+/* (Fix: fehlender Punkt vor der Klasse war der Grund, warum die
+   Herz-Buttons vorher nicht gestylt wurden) */
+.wishlist-btn {
     border: 2px solid #fff;
     border-radius: 50%;
     background: rgba(0, 0, 0, 0.6);
@@ -747,15 +751,136 @@ wishlist-btn {
     flex-shrink: 0;
 }
 
-/* empty Wishlist message  */
+/* leere Wishlist Nachricht */
 .msg-heart {
     background: #222;
     border: 3px solid #fff;
     color: #fff;
 }
 
-/* on your wishlist since */
+/* "auf der Wishlist seit ..." */
 .wishlist-added-date {
     font-size: 0.85rem;
     color: #ccc;
+}
+
+
+
+
+
+/* big round avatar frame for user profile */
+.profile-avatar-frame {
+    width: 160px;
+    height: 160px;
+    border: 5px solid #fff;
+    border-radius: 50%;
+    box-shadow: 8px 8px 0px var(--yellow, #ffe14d);
+    object-fit: cover;
+    background: #000;
+}
+
+/* role badge for user profile */
+.comic-role-badge {
+    background: var(--blue, #3aa0ff);
+    color: #000;
+    font-family: 'Bangers', sans-serif;
+    letter-spacing: 1px;
+    padding: 4px 14px;
+    border: 3px solid #000;
+    box-shadow: 3px 3px 0px #000;
+    text-transform: uppercase;
+    transform: rotate(-2deg);
+}
+
+.friend-role-badge {
+    font-size: 0.7rem;
+    padding: 3px 10px;
+}
+
+/* E-Mail Hover Reveal  */
+.email-reveal-wrap {
+    display: inline-flex;
+    cursor: pointer;
+    font-family: 'Comic Neue', monospace;
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.email-visible {
+    color: var(--yellow, #ffe14d);
+}
+
+.email-blurred {
+    color: #ffe14d;
+    filter: blur(5px);
+    user-select: none;
+    transition: filter 0.25s ease;
+}
+
+.email-reveal-wrap:hover .email-blurred {
+    filter: blur(0);
+}
+
+.email-hint {
+    display: block;
+    font-size: 0.75rem;
+    color: #999;
+    margin-top: 4px;
+}
+
+/* friendship sticker */
+.friend-stamp {
+    font-family: 'Bangers', sans-serif;
+    font-size: 1.2rem;
+    padding: 6px 16px;
+    border: 3px solid #000;
+    border-radius: 6px;
+    display: inline-block;
+    box-shadow: 3px 3px 0px #000;
+    text-transform: uppercase;
+}
+.friend-stamp.pending { background: var(--yellow, #ffe14d); color: #3d2e00; }
+.friend-stamp.friends { background: var(--green, #33d17a); color: #063d1f; }
+
+/* single user cards */
+.friend-card {
+    background: var(--paper, #161616);
+    border: 4px solid #fff;
+    box-shadow: 8px 8px 0px #000;
+    border-radius: 14px;
+    padding: 25px 15px;
+    text-align: center;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+    overflow: hidden;
+    height: 100%;
+}
+.friend-card:hover {
+    transform: translate(-4px, -4px);
+    box-shadow: 12px 12px 0px #000;
+}
+.friend-card .halftone-corner {
+    position: absolute;
+    top: -20px; right: -20px;
+    width: 80px; height: 80px;
+    background-image: radial-gradient(var(--yellow, #ffe14d) 3px, transparent 3px);
+    background-size: 10px 10px;
+    opacity: 0.5;
+    transform: rotate(20deg);
+    pointer-events: none;
+}
+.friend-avatar {
+    width: 110px;
+    height: 110px;
+    border: 4px solid #fff;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 5px 5px 0px #000;
+    margin-bottom: 15px;
+}
+.friend-name {
+    font-family: 'Bangers', sans-serif;
+    font-size: 1.6rem;
+    color: #fff;
+    letter-spacing: 1px;
 }

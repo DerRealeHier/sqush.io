@@ -3,58 +3,141 @@
 <head>
     <meta charset="UTF-8">
     <title>PROFILE - {{ user.username }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-    <style>
-        body { background-color: #0d0d0d; color: #fff; font-family: 'Arial Black', sans-serif; }
-        .comic-frame { border: 5px solid #fff; box-shadow: 10px 10px 0px #ffeb3b; padding: 30px; background: #1a1a1a; }
-        .profile-pic { width: 150px; height: 150px; border: 5px solid #fff; border-radius: 50%; object-fit: cover; }
-        .btn-comic { border: 3px solid #000; box-shadow: 4px 4px 0px #000; font-weight: 900; text-transform: uppercase; }
-    </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/style.css') }}">
 </head>
 <body>
-<div class="container py-5">
-    <div class="row justify-content-center">
-        <div class="col-md-6 comic-frame text-center">
-            <h1>PROFILE</h1>
-            <img src="{{ url_for('static', filename=user.profile_image) }}" class="profile-pic mb-3" alt="Avatar">
-            <h3>{{ user.username }}</h3>
-            <p class="text-warning">{{ user.email }}</p>
 
-            <hr class="border-white">
-
-            {% if current_user.is_authenticated and current_user.id == user.id %}
-            <form action="{{ url_for('update_profile') }}" method="POST" enctype="multipart/form-data">
-                <div class="mb-3 text-start">
-                    <label class="form-label">CHANGE AVATAR:</label>
-                    <input type="file" name="profile_pic" class="form-control btn-comic" accept="image/*" required>
-                </div>
-                <button type="submit" class="btn btn-success btn-comic w-100">SAVE CHANGES</button>
-            </form>
-            {% else %}
-            <div class="p-3 border border-secondary border-dashed">
-                <p class="text-danger m-0">THIS IS {{ user.username }}'S PROFILE.</p>
+<div class="BackgroundImage py-4 bg-image-wrap">
+    <div class="container-fluid d-flex justify-content-end px-4">
+        <div class="user-hud d-flex align-items-center gap-3">
+            <div class="dropdown">
+                <a class="nav-link position-relative" href="#" role="button" data-bs-toggle="dropdown">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="black" class="bi bi-bell-fill" viewBox="0 0 16 16">
+                        <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2m.995-14.901a1 1 0 1 0-1.99 0A5 5 0 0 0 3 6c0 1.098-.5 6-2 7h14c-1.5-1-2-5.902-2-7 0-2.42-1.72-4.44-4.005-4.901"/>
+                    </svg>
+                    {% if unread_count > 0 %}
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                        {{ unread_count }}
+                    </span>
+                    {% endif %}
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end p-2 notif-dropdown-menu" aria-labelledby="dropdownMenuButton">
+                    <li><h6 class="dropdown-header">Notifications</h6></li>
+                    {% for notif in current_user.notifications[-5:] %}
+                    <li>
+                        <a href="{{ url_for('read_notification', notif_id=notif.id) }}"
+                           class="dropdown-item text-wrap notif-link {% if not notif.is_read %}fw-bold bg-light{% endif %}">
+                            {{ notif.message }}
+                            <small class="d-block text-muted">
+                                {% if notif.created_at %}{{ notif.created_at.strftime('%H:%M') }}{% else %}--:--{% endif %}
+                            </small>
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
             </div>
-            {% endif %}
-            {% if user.username != current_user.username %}
-            {% set request = Friendship.query.filter(((Friendship.sender_id == current_user.id) and (Friendship.receiver_id == user.id)) or ((Friendship.sender_id == user.id) and (Friendship.receiver_id == current_user.id))).first() %}
-            {% if not request %}
-            <a href="{{ url_for('send_request', user_id=user.id) }}" class="btn btn-success btn-comic">FRIEND REQUEST (:</a>
-            {% elif request.status == 'pending' %}
-            {% if request.sender_id == current_user.id %}
-            <button class="btn btn-secondary btn-comic" disabled>WAITING...</button>
-            {% else %}
-            <a href="{{ url_for('accept_request', request_id=request.id) }}" class="btn btn-warning btn-comic">ACCEPT FRIEND!</a>
-            {% endif %}
-            {% elif request.status == 'accepted' %}
-            <button class="btn btn-info btn-comic" disabled>FRIENDS! :D</button>
-            <a href="{{ url_for('unfollow', username=user.username) }}" class="btn btn-danger">Don't be frieds anymore ):</a>
-            {% endif %}
-            {% endif %}
-            <div class="mt-3">
-                <a href="{{ url_for('store_front') }}" class="btn btn-light btn-comic">BACK TO STORE</a>
+            <div class="d-flex align-items-center gap-2">
+                <img src="{{ url_for('static', filename=current_user.profile_image) }}" class="hud-avatar">
+                <div class="d-flex flex-column">
+                    <a href="{{ url_for('profile', username=current_user.username) }}" class="hud-username text-decoration-none text-dark fw-bold">
+                        {{ current_user.username }}
+                    </a>
+                    <span class="hud-role">{{ current_user.role }}</span>
+                </div>
+                <a href="/logout" class="hud-btn-bye btn btn-sm btn-danger">BYE!</a>
             </div>
         </div>
     </div>
+
+    <div class="dropdown my-3">
+        <button class="btn dropdown-toggle fs-1 comic-dropdown-btn border-0" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+            Sqush
+        </button>
+        <ul class="dropdown-menu text-center comic-dropdown-menu" aria-labelledby="dropdownMenuButton">
+            <li><a class="dropdown-item comic-dropdown-item" href="{{ url_for('profile', username=current_user.username) }}">My profile</a></li>
+            <li><a class="dropdown-item comic-dropdown-item" href="{{ url_for('wishlist') }}">My Wishlist</a></li>
+            <li><a class="dropdown-item comic-dropdown-item" href="{{ url_for('library') }}">Library</a></li>
+            {% if current_user.role == 'dev' %}
+            <li><a class="dropdown-item comic-dropdown-item text-danger" href="/dashboard">Dev Dashboard</a></li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <nav class="navbar d-flex flex-column align-items-center justify-content-center mx-auto mb-4">
+        <div class="navbarContent d-flex justify-content-center align-items-center flex-wrap gap-3 m-0 w-100">
+            <a class="NavBar" href="/">Home</a>
+            <a class="NavBar" href="/store">Store</a>
+            <a class="NavBar" href="/community">COMMUNITY</a>
+            <a class="NavBar" href="/help">HELP</a>
+        </div>
+    </nav>
 </div>
+
+<div class="container py-5">
+    <div class="comic-frame text-center mx-auto" style="max-width: 650px;">
+
+        <img src="{{ url_for('static', filename=user.profile_image) }}" class="profile-avatar-frame mb-3" alt="{{ user.username }}">
+
+        <h1 class="mb-2">{{ user.username }}</h1>
+        <span class="comic-role-badge d-inline-block mb-3">{{ user.role }}</span>
+
+        {% if current_user.id == user.id %}
+        <div class="mt-2 mb-1">
+            <div class="email-reveal-wrap">
+                <span class="email-visible">{{ user.email[:3] }}</span><span class="email-blurred">{{ user.email[3:] }}</span>
+            </div>
+        </div>
+        <span class="email-hint">(hover to reveal your email)</span>
+        {% endif %}
+
+        <hr style="border: 2px solid #fff;" class="my-4">
+
+        {% if current_user.id == user.id %}
+        <form action="{{ url_for('update_profile') }}" method="POST" enctype="multipart/form-data" class="text-start">
+            <label class="filter-label">CHANGE AVATAR:</label>
+            <input type="file" name="profile_pic" class="form-control filter-input mb-3" accept="image/*" required>
+            <button type="submit" class="btn btn-comic w-100 text-white" style="background: var(--green,#33d17a);">SAVE CHANGES</button>
+        </form>
+        {% else %}
+        <div class="comic-auth-box msg-pink d-inline-block mb-4">
+            <span>THIS IS {{ user.username|upper }}'S PROFILE</span>
+        </div>
+
+        <div class="d-flex justify-content-center align-items-center gap-2 flex-wrap">
+            {% if not friend_request %}
+            <a href="{{ url_for('send_request', user_id=user.id) }}" class="btn btn-comic text-white" style="background: var(--green,#33d17a);">
+                <i class="bi bi-person-plus-fill"></i> FRIEND REQUEST
+            </a>
+            {% elif friend_request.status == 'pending' %}
+            {% if friend_request.sender_id == current_user.id %}
+            <span class="friend-stamp pending">WAITING...</span>
+            {% else %}
+            <a href="{{ url_for('accept_request', request_id=friend_request.id) }}" class="btn btn-comic text-dark" style="background: var(--yellow,#ffe14d);">
+                <i class="bi bi-check-circle-fill"></i> ACCEPT FRIEND
+            </a>
+            {% endif %}
+            {% elif friend_request.status == 'accepted' %}
+            <span class="friend-stamp friends"><i class="bi bi-people-fill"></i> FRIENDS</span>
+            <a href="{{ url_for('unfollow', username=user.username) }}" class="btn btn-comic text-white" style="background: var(--red,#ff3b30);">
+                UNFRIEND
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="mt-4">
+            <a href="{{ url_for('store_front') }}" class="btn comic-btn-store d-inline-block px-4" style="display:inline-block; width:auto;">BACK TO STORE</a>
+        </div>
+
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='JS/script.js') }}"></script>
 </body>
 </html>
