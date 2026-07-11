@@ -4,34 +4,97 @@
     <meta charset="UTF-8">
     <title>Sqush Login</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/style.css') }}">
     <style>
-        body { background-color: #121212; color: #fff; display: flex; font-family: sans-serif ;align-items: center; justify-content: center; height: 100vh; margin: 0;}
+        :root{
+            --ink:#0d0d0d;
+            --paper:#161616;
+            --yellow:#ffe14d;
+            --red:#ff3b30;
+            --blue:#3aa0ff;
+            --green:#33d17a;
+        }
+
+        body {
+            background-color: var(--ink);
+            background-image: radial-gradient(rgba(255,255,255,0.06) 1.5px, transparent 1.5px);
+            background-size: 14px 14px;
+            color: #fff;
+            font-family: 'Comic Neue', sans-serif;
+            display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;
+        }
+
+        h2, h5, .comic-font { font-family: 'Bangers', 'Comic Neue', sans-serif; letter-spacing: 1px; }
+
         .auth-card {
             width: 100%; max-width: 420px;
-            background: #1e1e1e; padding: 40px;
-            border: 4px solid #fff; box-shadow: 8px 8px 0px #000;
+            background: var(--paper); padding: 40px;
+            border: 4px solid #000; box-shadow: 10px 10px 0px #000;
+            position: relative;
         }
-        .form-control {border:3px solid #000; border-radius:0; background: #9a1818;color:#fff;font-weight: bold}
-        .btn-danger {background: #e91e63;border:4px solid#000;font-weight:900;text-transform: uppercase;border-radius:0;}
-        h2,h5 { text-transform: uppercase; font-weight:900; color:#ffeb3b;}
+
+        .auth-card::before {
+            content: "";
+            position: absolute; top: -14px; left: 30px;
+            width: 60px; height: 28px;
+            background: var(--yellow);
+            border: 3px solid #000;
+            transform: rotate(-3deg);
+        }
+
+        h2 { color: var(--red); font-size: 2.4rem; -webkit-text-stroke: 1px #000; }
+        h5 { color: var(--yellow); font-size: 1.2rem; }
+
+        label { color: #bbb; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .form-control {
+            border: 3px solid #000 !important;
+            border-radius: 0 !important;
+            background: #222 !important;
+            color: #fff !important;
+            font-weight: 700;
+        }
+        .form-control:focus {
+            border-color: var(--yellow) !important;
+            box-shadow: 3px 3px 0px var(--yellow) !important;
+        }
+
+        .btn-comic-auth {
+            background: var(--green);
+            border: 4px solid #000;
+            color: #000;
+            font-family: 'Bangers', sans-serif;
+            letter-spacing: 1px;
+            font-size: 1.4rem;
+            border-radius: 0;
+            box-shadow: 6px 6px 0px #000;
+            transition: transform 0.1s ease;
+        }
+        .btn-comic-auth:hover { background: var(--green); color: #000; transform: translate(2px, 2px); box-shadow: 4px 4px 0px #000; }
+
+        .auth-switch-link { color: var(--blue); font-weight: 700; text-decoration: none; }
+        .auth-switch-link:hover { color: var(--yellow); }
     </style>
 </head>
 <body>
 <div class="auth-card">
-    <h2 class="text-center mb-4 text-danger fw-bold">SQUSH STORE</h2>
-    <h5 class="text-center mb-4 text-light">Login</h5>
+    <h2 class="text-center mb-4">SQUSH</h2>
+    <h5 class="text-center mb-4">Login</h5>
     <form action="/login" method="POST">
         <div class="mb-3">
             <label class="form-label">Username</label>
-            <input type="text" name="username" class="form-control bg-dark text-light border-secondary" required>
+            <input type="text" name="username" class="form-control" required>
         </div>
         <div class="mb-4">
             <label class="form-label">Password</label>
-            <input type="password" name="password" class="form-control bg-dark text-light border-secondary" required>
+            <input type="password" name="password" class="form-control" required>
         </div>
-        <button type="submit" class="btn btn-danger w-100 fw-bold py-2 mb-3">Login</button>
+        <button type="submit" class="btn btn-comic-auth w-100 py-2 mb-3">Login</button>
         <div class="text-center">
-            <small class="text-light">Noch kein Account? <a href="/register" class="text-danger text-decoration-none">Kostenlos erstellen</a></small>
+            <small class="text-light">No Account? <a href="/register" class="auth-switch-link">Make one</a></small>
         </div>
     </form>
 </div>
