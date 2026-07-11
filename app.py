@@ -92,7 +92,7 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(128), nullable=False, unique=True) #trash-mails must be allowed
     password_hash = db.Column(db.String(250), nullable=False) #Quantum Computers shall fall
     role = db.Column(db.String(20), default="user") #you should be the dev
-    followed = db.relationship("User", secondary = Friendship.__table__,
+    followed = db.relationship("User", secondary = Friendship.__table__, #make some friends
                                primaryjoin = (Friendship.sender_id == id),
                                secondaryjoin=(Friendship.receiver_id == id),
                                backref="followers", lazy="dynamic"
@@ -128,9 +128,9 @@ class Game(db.Model):
     view_count = db.Column(db.Integer, default=0) #We need the DATA!
     image_path = db.Column(db.String(250))
     video_path = db.Column(db.String(250)) # The link couldn't be that long (:
-    #Marketplace Fields.
     description = db.Column(db.Text, nullable = True) #You could just have no description. Tell your Players nothing xD
     download_path = db.Column(db.String(250),nullable = False) #Better be able to find it
+    demo_path = db.Column(db.String(250), nullable = True)#optional demo
     is_on_sale = db.Column(db.Boolean, default = False)
     discount_percent = db.Column(db.Integer, default = 0) #Give them those 2%
     sale_end_date = db.Column(db.DateTime, nullable = True) #Can't keep on forever xD
@@ -625,6 +625,11 @@ def edit_game(game_id):
         game.is_on_sale = "is_on_sale" in request.form
         game.discount_percent = int(request.form.get("discount_percent", 0))
 
+        # only overwrite the demo if the dev actually picked a new file
+        demo_file = request.files.get("demo_file")
+        if demo_file and demo_file.filename:
+            game.demo_path = save_file(demo_file)
+
         files = request.files.getlist("screenshots")
         for f in files:
             if f and f.filename:
@@ -677,6 +682,7 @@ def developer_dashboard():
         uploaded_video = request.files.get("video_file")
         video_youtube = request.form.get("video_youtube", "").strip()
         game_file = request.files.get("game_file")
+        demo_file = request.files.get("demo_file")
 
         image_path = save_file(image_file) if image_file else ""
 
@@ -694,10 +700,11 @@ def developer_dashboard():
             video_path = "https://www.youtube.com/watch?v=E4WlUXrJgy4"
 
         download_path = save_file(game_file) if game_file else ""
+        demo_path = save_file(demo_file) if demo_file and demo_file.filename else None
 
         new_game = Game(title=title, genre=genre, priority=priority, tags=tags, price=price,
                         image_path=image_path, video_path=video_path, description=description,
-                        download_path=download_path, is_on_sale=is_on_sale, sale_end_date=sale_end_date,
+                        download_path=download_path, demo_path=demo_path, is_on_sale=is_on_sale, sale_end_date=sale_end_date,
                         discount_percent=discount_percent, developer_id=current_user.id)
 
         db.session.add(new_game)
