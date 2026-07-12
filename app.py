@@ -92,6 +92,7 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(128), nullable=False, unique=True) #trash-mails must be allowed
     password_hash = db.Column(db.String(250), nullable=False) #Quantum Computers shall fall
     role = db.Column(db.String(20), default="user") #you should be the dev
+    comments_enabled = db.Column(db.Boolean, default=True)# profile owner can turn comments off completely
     followed = db.relationship("User", secondary = Friendship.__table__, #make some friends
                                primaryjoin = (Friendship.sender_id == id),
                                secondaryjoin=(Friendship.receiver_id == id),
@@ -151,8 +152,21 @@ class Wishlist(db.Model):
     added_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     game = db.relationship("Game", backref="wishlisted_by")
     user = db.relationship("User", backref="wishlist_entries")
-    # ein Spiel kann pro User nur einmal auf der Wishlist landen
+    #one game per user on the wishlist
     __table_args__ = (db.UniqueConstraint('user_id', 'game_id', name='unique_wishlist'),)
+
+class ProfileComment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    # whose profile the comment was posted on
+    profile_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    # who wrote the comment? It's me xD
+    author_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    profile_user = db.relationship("User", foreign_keys=[profile_user_id], backref="profile_comments")
+    author = db.relationship("User", foreign_keys=[author_id])
+
 
 class Screenshot(db.Model):
     id = db.Column(db.Integer, primary_key = True)
@@ -425,7 +439,70 @@ def profile(username):
         ((Friendship.sender_id == current_user.id) & (Friendship.receiver_id == target_user.id)) |
         ((Friendship.sender_id == target_user.id) & (Friendship.receiver_id == current_user.id))
     ).first()
-    return render_template("profile.html", user=target_user, friend_request=friend_request)
+
+    # newest comments first. Who comes first is last ;)
+    comments = ProfileComment.query.filter_by(profile_user_id=target_user.id) \
+        .order_by(ProfileComment.created_at.desc()).all()
+
+    return render_template(
+        "profile.html",
+        user=target_user,
+        friend_request=friend_request,
+        comments=comments
+    )
+
+
+@app.route("/profile/<username>/comment", methods=["POST"])
+@login_required
+def post_profile_comment(username):
+    target_user = User.query.filter_by(username=username).first_or_404()
+
+    # respect the owner's setting. WQe aren't assholes (:
+    if not target_user.comments_enabled:
+        return "Comments are disabled on this profile", 403
+
+    content = request.form.get("content", "").strip()
+    if content:
+        new_comment = ProfileComment(
+            profile_user_id=target_user.id,
+            author_id=current_user.id,
+            content=content
+        )
+        db.session.add(new_comment)
+
+        # notify the profile owner!
+        if target_user.id != current_user.id:
+            notif = Notification(
+                user_id=target_user.id,
+                message=f"{current_user.username} commented on your profile",
+                type="profile_comment"
+            )
+            db.session.add(notif)
+
+        db.session.commit()
+
+    return redirect(url_for("profile", username=username))
+
+@app.route("/profile/comment/<int:comment_id>/delete", methods=["POST"])
+@login_required
+def delete_profile_comment(comment_id):
+    comment = ProfileComment.query.get_or_404(comment_id)
+
+    if comment.profile_user_id != current_user.id and comment.author_id != current_user.id:
+        return "Access Denied: not your comment or profile", 403
+
+    profile_username = comment.profile_user.username
+    db.session.delete(comment)
+    db.session.commit()
+    return redirect(url_for("profile", username=profile_username))
+
+@app.route("/profile/toggle_comments", methods=["POST"])
+@login_required
+def toggle_comments():
+    current_user.comments_enabled = not current_user.comments_enabled
+    db.session.commit()
+    return redirect(url_for("profile", username=current_user.username))
+
 
 #You shouldn't even wanna do this. 🤬
 @app.route("/logout")

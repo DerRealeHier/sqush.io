@@ -103,6 +103,19 @@
             <input type="file" name="profile_pic" class="form-control filter-input mb-3" accept="image/*" required>
             <button type="submit" class="btn btn-comic w-100 text-white" style="background: var(--green,#33d17a);">SAVE CHANGES</button>
         </form>
+
+
+        <form action="{{ url_for('toggle_comments') }}" method="POST" class="mt-3">
+            {% if user.comments_enabled %}
+            <button type="submit" class="btn btn-comic text-white" style="background: var(--red,#ff3b30);">
+                <i class="bi bi-chat-square-dots-fill"></i> DISABLE COMMENTS
+            </button>
+            {% else %}
+            <button type="submit" class="btn btn-comic text-dark" style="background: var(--yellow,#ffe14d);">
+                <i class="bi bi-chat-square-dots"></i> ENABLE COMMENTS
+            </button>
+            {% endif %}
+        </form>
         {% else %}
         <div class="comic-auth-box msg-pink d-inline-block mb-4">
             <span>THIS IS {{ user.username|upper }}'S PROFILE</span>
@@ -135,6 +148,61 @@
         </div>
 
     </div>
+
+
+    <div class="comic-frame mx-auto mt-5" style="max-width: 650px;">
+        <h2 class="mb-4"><i class="bi bi-chat-square-text-fill"></i> COMMENTS</h2>
+
+        {% if user.comments_enabled %}
+
+
+        <form action="{{ url_for('post_profile_comment', username=user.username) }}" method="POST" class="text-start mb-4">
+                <textarea name="content" class="form-control filter-input mb-2" rows="3"
+                          placeholder="Write something on {{ user.username }}'s wall..." required></textarea>
+            <button type="submit" class="btn btn-comic text-white" style="background: var(--blue,#3aa0ff);">
+                <i class="bi bi-send-fill"></i> POST COMMENT
+            </button>
+        </form>
+
+        {% if comments|length == 0 %}
+        <div class="comic-auth-box msg-yellow d-inline-block">
+            <span>NO COMMENTS YET. BE THE FIRST ONE!</span>
+        </div>
+        {% else %}
+        <div class="d-flex flex-column gap-3 text-start">
+            {% for comment in comments %}
+            <div class="profile-comment-card">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="d-flex align-items-center gap-2">
+                        <img src="{{ url_for('static', filename=comment.author.profile_image) }}" class="profile-comment-avatar">
+                        <a href="{{ url_for('profile', username=comment.author.username) }}" class="profile-comment-author">
+                            {{ comment.author.username }}
+                        </a>
+                    </div>
+                    {% if current_user.id == user.id or current_user.id == comment.author_id %}
+                    <form action="{{ url_for('delete_profile_comment', comment_id=comment.id) }}" method="POST">
+                        <button type="submit" class="btn-comic-delete profile-comment-delete-btn" title="Delete comment">
+                            <i class="bi bi-trash-fill"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+                <p class="profile-comment-text mb-1">{{ comment.content }}</p>
+                <span class="profile-comment-date">
+                        {% if comment.created_at %}{{ comment.created_at.strftime('%d.%m.%Y %H:%M') }}{% endif %}
+                    </span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="comic-auth-box msg-pink d-inline-block">
+            <span>COMMENTS ARE DISABLED ON THIS PROFILE</span>
+        </div>
+        {% endif %}
+    </div>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

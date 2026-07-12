@@ -884,3 +884,56 @@ h1 { text-transform: uppercase; font-size: 3.4rem ; text-shadow: 4px 4px 0px var
     color: #fff;
     letter-spacing: 1px;
 }
+.profile-comment-card {
+    background: var(--paper, #161616);
+    border: 3px solid #fff;
+    border-radius: 12px;
+    box-shadow: 6px 6px 0px #000;
+    padding: 16px 18px;
+    position: relative;
+}
+
+.profile-comment-avatar {
+    width: 36px;
+    height: 36px;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.profile-comment-author {
+    font-family: 'Bangers', sans-serif;
+    letter-spacing: 1px;
+    font-size: 1.2rem;
+    color: var(--yellow, #ffe14d);
+    text-decoration: none;
+}
+
+.profile-comment-author:hover {
+    color: #fff;
+}
+
+.profile-comment-text {
+    font-family: 'Comic Neue', sans-serif;
+    font-weight: 700;
+    color: #fff;
+    margin-top: 10px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.profile-comment-date {
+    font-size: 0.75rem;
+    color: #999;
+}
+
+.profile-comment-delete-btn {
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-size: 0.85rem;
+}
