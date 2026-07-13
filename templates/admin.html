@@ -228,6 +228,9 @@
                     </div>
                     {% if game.developer_id == current_user.id %}
                     <a href="{{ url_for('edit_game', game_id=game.id) }}" class="btn edit-btn btn-sm">EDIT GAME</a>
+                    <a href="{{ url_for('game_stats', game_id=game.id) }}" class="btn edit-btn btn-sm" style="background: var(--blue);">
+                        <i class="bi bi-graph-up"></i> STATS
+                    </a>
                     {% endif %}
                 </div>
                 {% if game.image_path %}

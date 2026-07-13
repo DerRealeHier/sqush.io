@@ -155,6 +155,18 @@ class Wishlist(db.Model):
     #one game per user on the wishlist
     __table_args__ = (db.UniqueConstraint('user_id', 'game_id', name='unique_wishlist'),)
 
+class GameStats(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    game_id = db.Column(db.Integer, db.ForeignKey("game.id"), nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    views = db.Column(db.Integer, default=0)
+    wishlist_count = db.Column(db.Integer, default=0)
+    purchase_count = db.Column(db.Integer, default=0)
+
+    game = db.relationship("Game", backref="stats_history")
+    # one snapshot per game per day(its getting updated not a new datapoint everys day)
+    __table_args__ = (db.UniqueConstraint('game_id', 'date', name='unique_game_stat_day'),)
+
 class ProfileComment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     # whose profile the comment was posted on
@@ -231,9 +243,33 @@ def calculate_review_score(review):
     length_factor = min(text_len / 200, 1.0)  # ab 200 Zeichen voller Bonus
     return (review.helpful_count * 2) + (review.funny_count * 1) + (length_factor * 3)
 
+def update_daily_stats(game):
+    # one row per day.
+    today = datetime.now(timezone.utc).date()
+    entry = GameStats.query.filter_by(game_id=game.id, date=today).first()
+
+    wishlist_count = Wishlist.query.filter_by(game_id=game.id).count()
+    purchase_count = Purchase.query.filter_by(game_id=game.id).count()
+
+    if entry:
+        entry.views = game.view_count
+        entry.wishlist_count = wishlist_count
+        entry.purchase_count = purchase_count
+    else:
+        entry = GameStats(
+            game_id=game.id,
+            date=today,
+            views=game.view_count,
+            wishlist_count=wishlist_count,
+            purchase_count=purchase_count
+        )
+        db.session.add(entry)
+
+    db.session.commit()
+
 def check_sales_expiry():
     now = datetime.now(timezone.utc)
-    # Hole nur aktive Sales
+    # only get active sales.
     sales_to_check = Game.query.filter(Game.is_on_sale == True, Game.sale_end_date != None).all()
     changed = False
 
@@ -360,12 +396,6 @@ def unfollow(username):
             db.session.commit()
     return redirect(url_for('profile', username=username))
 
-@app.route("/increment_view/<int:game_id>", methods = ["POST"])
-def increment_view(game_id):
-    game = Game.query.get_or_404(game_id)
-    game.view_count += 1
-    db.session.commit()
-    return jsonify({"status": "success", "views": game.view_count})
 
 #clicking twice makes the vote disappear. Pretty basic
 @app.route("/vote_review/<int:review_id>/<vote_type>", methods=["POST"])
@@ -457,7 +487,7 @@ def profile(username):
 def post_profile_comment(username):
     target_user = User.query.filter_by(username=username).first_or_404()
 
-    # respect the owner's setting. WQe aren't assholes (:
+    # respect the owner's setting. We aren't assholes (:
     if not target_user.comments_enabled:
         return "Comments are disabled on this profile", 403
 
@@ -503,6 +533,32 @@ def toggle_comments():
     db.session.commit()
     return redirect(url_for("profile", username=current_user.username))
 
+
+@app.route("/increment_view/<int:game_id>", methods = ["POST"])
+def increment_view(game_id):
+    game = Game.query.get_or_404(game_id)
+    game.view_count += 1
+    db.session.commit()
+    update_daily_stats(game)
+    return jsonify({"status": "success", "views": game.view_count})
+
+@app.route("/toggle_wishlist/<int:game_id>", methods=["POST"])
+@login_required
+def toggle_wishlist(game_id):
+    game = Game.query.get_or_404(game_id)
+
+    existing = Wishlist.query.filter_by(user_id=current_user.id, game_id=game.id).first()
+    if existing:
+        db.session.delete(existing)
+        db.session.commit()
+        update_daily_stats(game)
+        return jsonify({"status": "removed", "on_wishlist": False, "count": len(game.wishlisted_by)})
+    else:
+        entry = Wishlist(user_id=current_user.id, game_id=game.id)
+        db.session.add(entry)
+        db.session.commit()
+        update_daily_stats(game)
+        return jsonify({"status": "added", "on_wishlist": True, "count": len(game.wishlisted_by)})
 
 #You shouldn't even wanna do this. 🤬
 @app.route("/logout")
@@ -609,22 +665,6 @@ def create_checkout_session(game_id):
     except Exception as e:
         return jsonify(error=str(e)), 403
 
-@app.route("/toggle_wishlist/<int:game_id>", methods=["POST"])
-@login_required
-def toggle_wishlist(game_id):
-    game = Game.query.get_or_404(game_id)
-
-    existing = Wishlist.query.filter_by(user_id=current_user.id, game_id=game.id).first()
-    if existing:
-        db.session.delete(existing)
-        db.session.commit()
-        return jsonify({"status": "removed", "on_wishlist": False, "count": len(game.wishlisted_by)})
-    else:
-        entry = Wishlist(user_id=current_user.id, game_id=game.id)
-        db.session.add(entry)
-        db.session.commit()
-        return jsonify({"status": "added", "on_wishlist": True, "count": len(game.wishlisted_by)})
-
 
 @app.route("/wishlist")
 @login_required
@@ -634,7 +674,7 @@ def wishlist():
     for entry in entries:
         game = entry.game
         game.display_price = calculate_display_price(game)
-        # gleiche tags_json Logik wie in store_front(), fürs Anzeigen/Filtern
+        # same tags logic like in store front
         tags = [t.strip().lower() for t in game.tags.split(",")] if game.tags else []
         game.tags_json = json.dumps(tags)
         games.append(game)
@@ -644,12 +684,13 @@ def wishlist():
 @app.route("/success/<int:game_id>")
 @login_required
 def success(game_id):
+    game = Game.query.get_or_404(game_id)
     if not Purchase.query.filter_by(user_id=current_user.id, game_id=game_id).first():
         new_purchase = Purchase(user_id=current_user.id, game_id=game_id)
         db.session.add(new_purchase)
         db.session.commit()
+        update_daily_stats(game)
 
-    game= Game.query.get_or_404(game_id)
     return render_template("success.html", game=game)
 
 @app.route("/remove_purchase/<int:game_id>", methods=["POST"])
@@ -800,6 +841,39 @@ def developer_dashboard():
     for game in my_games:
         game.display_price = calculate_display_price(game)
     return render_template("admin.html", games=my_games)
+
+@app.route("/dashboard/game/<int:game_id>/stats")
+@login_required
+def game_stats(game_id):
+    game = Game.query.get_or_404(game_id)
+    if current_user.role != "dev":
+        return "Access Denied. How could you?", 403
+    if game.developer_id != current_user.id:
+        return "Access Denied: Better Luck next time (:", 403
+
+    # make sure today's data point is up to date before we show it
+    update_daily_stats(game)
+
+    history = GameStats.query.filter_by(game_id=game.id).order_by(GameStats.date.asc()).all()
+
+    chart_data = {
+        "labels": [h.date.strftime("%d.%m.%Y") for h in history],
+        "views": [h.views for h in history],
+        "wishlists": [h.wishlist_count for h in history],
+        "purchases": [h.purchase_count for h in history]
+    }
+
+    current_wishlist_count = Wishlist.query.filter_by(game_id=game.id).count()
+    current_purchase_count = Purchase.query.filter_by(game_id=game.id).count()
+
+    return render_template(
+        "game_stats.html",
+        game=game,
+        chart_json=json.dumps(chart_data),
+        current_wishlist_count=current_wishlist_count,
+        current_purchase_count=current_purchase_count
+    )
+
 #Yea I need that
 migrate = Migrate(app, db)
 
