@@ -143,6 +143,8 @@ class Purchase(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     game_id = db.Column(db.Integer, db.ForeignKey("game.id"), nullable=False)
+    price_paid = db.Column(db.Float, nullable=True)  # what it actually cost at purchase time
+    purchased_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     game = db.relationship("Game", backref="purchases")
 
 class Wishlist(db.Model):
@@ -162,6 +164,7 @@ class GameStats(db.Model):
     views = db.Column(db.Integer, default=0)
     wishlist_count = db.Column(db.Integer, default=0)
     purchase_count = db.Column(db.Integer, default=0)
+    revenue = db.Column(db.Float, default=0.0)  # snapshot of all the revenue for that day
 
     game = db.relationship("Game", backref="stats_history")
     # one snapshot per game per day(its getting updated not a new datapoint everys day)
@@ -230,6 +233,13 @@ def save_file(file, folder=None):
         return f"{relative_folder}/{filename}"
     return None
 
+def calculate_game_revenue(game):
+    # yea you aint getting the old money back.
+    total = 0
+    for p in game.purchases:
+        total += p.price_paid if p.price_paid is not None else calculate_display_price(game)
+    return total
+
 def calculate_display_price(game):
     #I had this in like all functions. Now I have an own one for it.
     if game.is_on_sale and game.discount_percent > 0:
@@ -250,18 +260,21 @@ def update_daily_stats(game):
 
     wishlist_count = Wishlist.query.filter_by(game_id=game.id).count()
     purchase_count = Purchase.query.filter_by(game_id=game.id).count()
+    revenue = calculate_game_revenue(game)
 
     if entry:
         entry.views = game.view_count
         entry.wishlist_count = wishlist_count
         entry.purchase_count = purchase_count
+        entry.revenue = revenue
     else:
         entry = GameStats(
             game_id=game.id,
             date=today,
             views=game.view_count,
             wishlist_count=wishlist_count,
-            purchase_count=purchase_count
+            purchase_count=purchase_count,
+            revenue=revenue
         )
         db.session.add(entry)
 
@@ -573,7 +586,12 @@ def purchase(game_id):
     #Rather not buy it twice
     if Purchase.query.filter_by(user_id=current_user.id, game_id=game_id).first():
         return "Brochacho, you already own that", 400
-    new_purchase = Purchase(user_id=current_user.id, game_id=game_id)
+    game = Game.query.get_or_404(game_id)
+    new_purchase = Purchase(
+        user_id=current_user.id,
+        game_id=game_id,
+        price_paid=calculate_display_price(game)
+    )
     db.session.add(new_purchase)
     db.session.commit()
     return redirect(url_for("library"))
@@ -686,7 +704,11 @@ def wishlist():
 def success(game_id):
     game = Game.query.get_or_404(game_id)
     if not Purchase.query.filter_by(user_id=current_user.id, game_id=game_id).first():
-        new_purchase = Purchase(user_id=current_user.id, game_id=game_id)
+        new_purchase = Purchase(
+            user_id=current_user.id,
+            game_id=game_id,
+            price_paid=calculate_display_price(game)
+        )
         db.session.add(new_purchase)
         db.session.commit()
         update_daily_stats(game)
@@ -860,7 +882,8 @@ def game_stats(game_id):
         "labels": [h.date.strftime("%d.%m.%Y") for h in history],
         "views": [h.views for h in history],
         "wishlists": [h.wishlist_count for h in history],
-        "purchases": [h.purchase_count for h in history]
+        "purchases": [h.purchase_count for h in history],
+        "revenue": [h.revenue for h in history]
     }
 
     current_wishlist_count = Wishlist.query.filter_by(game_id=game.id).count()
@@ -871,8 +894,38 @@ def game_stats(game_id):
         game=game,
         chart_json=json.dumps(chart_data),
         current_wishlist_count=current_wishlist_count,
-        current_purchase_count=current_purchase_count
+        current_purchase_count=current_purchase_count,
+        total_revenue=calculate_game_revenue(game)
     )
+
+@app.route("/dashboard/revenue")
+@login_required
+def developer_revenue():
+    if current_user.role != "dev":
+        return "Access Denied. How could you?", 403
+
+    my_games = Game.query.filter_by(developer_id=current_user.id).all()
+
+    revenue_data = []
+    total_revenue = 0
+    for game in my_games:
+        game_revenue = calculate_game_revenue(game)
+        total_revenue += game_revenue
+        revenue_data.append({
+            "game": game,
+            "revenue": game_revenue,
+            "sales_count": len(game.purchases)
+        })
+
+    # highest earner first
+    revenue_data.sort(key=lambda x: x["revenue"], reverse=True)
+
+    return render_template(
+        "developer_revenue.html",
+        revenue_data=revenue_data,
+        total_revenue=total_revenue
+    )
+
 
 #Yea I need that
 migrate = Migrate(app, db)

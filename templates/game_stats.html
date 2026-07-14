@@ -62,6 +62,7 @@
         .stat-views .stat-number { color: var(--yellow); }
         .stat-wishlist .stat-number { color: var(--red); }
         .stat-purchase .stat-number { color: var(--green); }
+        .stat-revenue .stat-number { color: var(--blue); }
 
         .back-btn {
             background: var(--yellow);
@@ -117,24 +118,29 @@
         <a href="{{ url_for('developer_dashboard') }}" class="back-btn"><i class="bi bi-arrow-left"></i> BACK TO DASHBOARD</a>
     </div>
 
-
     <div class="row g-3 mb-4">
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="stat-card stat-views">
                 <div class="stat-number">{{ game.view_count }}</div>
                 <div class="stat-label"><i class="bi bi-eye-fill"></i> Total Views</div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="stat-card stat-wishlist">
                 <div class="stat-number">{{ current_wishlist_count }}</div>
                 <div class="stat-label"><i class="bi bi-heart-fill"></i> On Wishlist</div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="stat-card stat-purchase">
                 <div class="stat-number">{{ current_purchase_count }}</div>
                 <div class="stat-label"><i class="bi bi-bag-check-fill"></i> Purchases</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card stat-revenue">
+                <div class="stat-number">{{ "%.2f"|format(total_revenue) }}€</div>
+                <div class="stat-label"><i class="bi bi-cash-coin"></i> Revenue</div>
             </div>
         </div>
     </div>
@@ -194,6 +200,17 @@
                         borderWidth: 3,
                         pointRadius: 4,
                         pointBackgroundColor: '#000'
+                    },
+                    {
+                        label: 'Revenue (€)',
+                        data: chartData.revenue,
+                        borderColor: '#3aa0ff',
+                        backgroundColor: '#3aa0ff',
+                        tension: 0.2,
+                        borderWidth: 3,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#000',
+                        yAxisID: 'yRevenue'
                     }
                 ]
             },
@@ -217,7 +234,15 @@
                     y: {
                         beginAtZero: true,
                         ticks: { color: '#bbb', precision: 0 },
-                        grid: { color: 'rgba(255,255,255,0.08)' }
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        title: { display: true, text: 'Views / Wishlists / Purchases', color: '#bbb' }
+                    },
+                    yRevenue: {
+                        beginAtZero: true,
+                        position: 'right',
+                        ticks: { color: '#3aa0ff' },
+                        grid: { drawOnChartArea: false },
+                        title: { display: true, text: 'Revenue (€)', color: '#3aa0ff' }
                     }
                 }
             }
