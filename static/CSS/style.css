@@ -39,7 +39,8 @@ a {
 /* Main background image banner with crisp pixel rendering */
 .BackgroundImage {
     background-color: #2196f3;
-    background-image: url("https://raw.githubusercontent.com/DerRealeHier/sqush.io/main/AI_generatedBackground.png");
+    /*background-image: url("https://raw.githubusercontent.com/DerRealeHier/sqush.io/main/AI_generatedBackground.png");*/
+    background-image: url("https://raw.githubusercontent.com/DerRealeHier/sqush.io/main/pixel_art.png");
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
