@@ -253,6 +253,106 @@ def calculate_review_score(review):
     length_factor = min(text_len / 200, 1.0)  # ab 200 Zeichen voller Bonus
     return (review.helpful_count * 2) + (review.funny_count * 1) + (length_factor * 3)
 
+
+def _get_tag_set(game):
+    # small helper so we don't repeat all again and again.
+    if not game.tags:
+        return set()
+    return {t.strip().lower() for t in game.tags.split(",") if t.strip()}
+
+
+def get_popular_games(exclude_ids=None, limit=6):
+    # Fallback for empty libraries or when nothing else scores
+    exclude_ids = exclude_ids or set()
+    query = Game.query
+    if exclude_ids:
+        query = query.filter(~Game.id.in_(exclude_ids))
+    candidates = query.all()
+    candidates.sort(key=lambda g: len(g.purchases), reverse=True)
+    return candidates[:limit]
+
+
+def get_recommended_games(user, limit=6):
+    """
+    All of this code is fine for a small store, but it's not going to scale well...
+    Its because of the Game.query.all() call. If you wanna use this for a large store, you should
+    use real tag tables! If you dont then it might become a problem.
+    """
+    if not user.is_authenticated:
+        return []
+
+    my_owned_ids = {p.game_id for p in Purchase.query.filter_by(user_id=user.id).all()}
+
+    if not my_owned_ids:
+        # Fresh account; I'll recommend the most popular games. xD
+        return get_popular_games(exclude_ids=set(), limit=limit)
+
+    all_games = Game.query.all()
+    games_by_id = {g.id: g for g in all_games}
+
+    # mmy personal tag cloud build from everything I own ):
+    my_tags = set()
+    for gid in my_owned_ids:
+        game = games_by_id.get(gid)
+        if game:
+            my_tags |= _get_tag_set(game)
+
+    all_purchases = Purchase.query.all()
+    # yea im going into both directions.
+    owners_by_game = {}
+    games_by_user = {}
+    for p in all_purchases:
+        owners_by_game.setdefault(p.game_id, set()).add(p.user_id)
+        games_by_user.setdefault(p.user_id, set()).add(p.game_id)
+
+    # Who owns at least one game with a same tag as mine?
+    tag_similar_user_ids = set()
+    if my_tags:
+        for uid, gids in games_by_user.items():
+            if uid == user.id:
+                continue
+            for gid in gids:
+                owned_game = games_by_id.get(gid)
+                if owned_game and (_get_tag_set(owned_game) & my_tags):
+                    tag_similar_user_ids.add(uid)
+                    break
+
+    # Who shares at least one game with my library?
+    similar_library_user_ids = {
+        uid for uid, gids in games_by_user.items()
+        if uid != user.id and (gids & my_owned_ids)
+    }
+
+    wishlisters_by_game = {}
+    for w in Wishlist.query.all():
+        wishlisters_by_game.setdefault(w.game_id, set()).add(w.user_id)
+
+    scores = {}
+    for game in all_games:
+        if game.id in my_owned_ids:
+            continue  # you already own it, go buy it for your friend. (Just found out that I don't have this feature yet xD)
+
+        owners = owners_by_game.get(game.id, set())
+        wishlisters = wishlisters_by_game.get(game.id, set())
+
+        tag_score = len(owners & tag_similar_user_ids)
+        popularity_score = len(owners)
+        similar_wishlist_score = len(wishlisters & similar_library_user_ids)
+
+        # yeah popularity is the least important factor, but it's still there.'
+        total_score = (tag_score * 3) + (similar_wishlist_score * 2) + (popularity_score * 1)
+
+        if total_score > 0:
+            scores[game.id] = total_score
+
+    if not scores:
+        #nothing matched so its kept empty
+        return get_popular_games(exclude_ids=my_owned_ids, limit=limit)
+
+    top_ids = sorted(scores, key=lambda gid: scores[gid], reverse=True)[:limit]
+    return [games_by_id[gid] for gid in top_ids]
+
+
 def update_daily_stats(game):
     # one row per day.
     today = datetime.now(timezone.utc).date()
@@ -605,7 +705,14 @@ def home():
     for game in sale_games:
         game.display_price = calculate_display_price(game)
 
-    return render_template('home.html', sale_games=sale_games)
+    # personalized recommendations, only makes sense for logged in folks
+    recommended_games = get_recommended_games(current_user, limit=6)
+    for game in recommended_games:
+        game.display_price = calculate_display_price(game)
+        tags = [t.strip().lower() for t in game.tags.split(",")] if game.tags else []
+        game.tags_json = json.dumps(tags)
+
+    return render_template('home.html', sale_games=sale_games, recommended_games=recommended_games)
 
 @app.route("/library")
 @login_required

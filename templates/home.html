@@ -98,6 +98,54 @@
         </div>
     </div>
 
+    {% if current_user.is_authenticated and recommended_games %}
+    <h2 class="home-sale-title text-center mb-5">Recommended For You</h2>
+
+    <div class="row g-5 mb-5" id="recommendedGrid">
+        {% for game in recommended_games %}
+        <div class="col-md-4">
+            <div class="home-sale-card game-card" data-video-type="{% if game.video_path %}{% if game.video_path.startswith('youtube:') %}youtube{% else %}local{% endif %}{% else %}none{% endif %}" data-yt-id="yt-rec-{{ game.id }}">
+                {% if game.id in wishlist_ids %}
+                <button class="wishlist-btn card-overlay active" data-game-id="{{ game.id }}" title="Zur Wishlist hinzufügen">
+                    <i class="bi bi-heart-fill"></i>
+                </button>
+                {% else %}
+                <button class="wishlist-btn card-overlay" data-game-id="{{ game.id }}" title="Zur Wishlist hinzufügen">
+                    <i class="bi bi-heart"></i>
+                </button>
+                {% endif %}
+                <div class="home-card-img-wrapper">
+                    {% if game.video_path %}
+                    {% if game.video_path.startswith('youtube:') %}
+                    {% set yt_id = game.video_path[8:] %}
+                    <iframe id="yt-rec-{{ game.id }}" class="game-video yt-player-iframe" src="https://www.youtube.com/embed/{{ yt_id }}?enablejsapi=1&controls=0&rel=0&showinfo=0&iv_load_policy=3" allow="autoplay; encrypted-media"></iframe>
+                    {% else %}
+                    <video class="game-video" src="{{ url_for('static', filename=game.video_path) }}" loop muted></video>
+                    {% endif %}
+                    {% endif %}
+                    <a href="{{ url_for('game_detail', game_id=game.id) }}" class="text-decoration-none">
+                        <img src="{{ url_for('static', filename=game.image_path) }}" alt="{{ game.title }}" class="game-cover-img">
+                    </a>
+                </div>
+                <div class="p-4 text-center">
+                    <h3 class="comic-card-title mb-3">{{ game.title }}</h3>
+                    <div class="my-3">
+                        {% if game.is_on_sale %}
+                        <span class="text-muted text-decoration-line-through me-2 fw-bold price-strikethrough">{{ "%.2f"|format(game.price) }}€</span>
+                        {% endif %}
+                        <span class="comic-price">{{ "%.2f"|format(game.display_price) }}€</span>
+                    </div>
+                    <div class="mb-2">
+                        <span class="view-count-badge">{{ game.view_count }} Views</span>
+                    </div>
+                    <a href="{{ url_for('game_detail', game_id=game.id) }}" class="btn comic-btn-store mt-2">Buy Now!</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     <h2 class="home-sale-title text-center mb-5">Hot Deals</h2>
 
     <div class="row g-5" id="gamesGrid">

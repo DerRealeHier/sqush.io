@@ -95,7 +95,7 @@
             </a>
 
             <form action="{{ url_for('remove_purchase', game_id=game.id) }}" method="POST"
-                  onsubmit="return confirm('Wirklich aus der Bibliothek entfernen?');">
+                  onsubmit="return confirm('Really remove this game from your library?');">
                 <button type="submit" class="btn btn-danger btn-comic">
                     <i class="bi bi-x-lg"></i>
                 </button>
