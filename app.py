@@ -1,14 +1,19 @@
 import json
 import os
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+import random
+from flask import Flask, render_template, request, redirect, url_for, jsonify, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
 from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
 from werkzeug.security import check_password_hash, generate_password_hash
 import stripe #juicy money XD
 from dotenv import load_dotenv
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from flask_migrate import Migrate
+from flask_mail import Mail, Message
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
+import firebase_admin
+from firebase_admin import credentials as firebase_credentials, auth as firebase_auth
 
 # Stripe API Keys.
 load_dotenv()
@@ -20,6 +25,43 @@ stripe_keys = {
 }
 
 stripe.api_key = stripe_keys["secret_key"]
+
+app.config["MAIL_SERVER"] = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
+app.config["MAIL_PORT"] = int(os.environ.get("MAIL_PORT", 587))
+app.config["MAIL_USE_TLS"] = os.environ.get("MAIL_USE_TLS", "true").lower() == "true"
+app.config["MAIL_USERNAME"] = os.environ.get("MAIL_USERNAME")
+app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD")
+app.config["MAIL_DEFAULT_SENDER"] = os.environ.get("MAIL_DEFAULT_SENDER", app.config["MAIL_USERNAME"])
+mail = Mail(app)
+
+
+email_serializer = URLSafeTimedSerializer(app.config["SECRET_KEY"])
+
+FIREBASE_SERVICE_ACCOUNT_JSON = os.environ.get("FIREBASE_SERVICE_ACCOUNT_JSON")
+FIREBASE_SERVICE_ACCOUNT_PATH = os.environ.get("FIREBASE_SERVICE_ACCOUNT_PATH", "firebase-service-account.json")
+
+FIREBASE_ENABLED = False
+
+if FIREBASE_SERVICE_ACCOUNT_JSON:
+    try:
+        firebase_cred = firebase_credentials.Certificate(json.loads(FIREBASE_SERVICE_ACCOUNT_JSON))
+        firebase_admin.initialize_app(firebase_cred)
+        FIREBASE_ENABLED = True
+    except (json.JSONDecodeError, ValueError) as e:
+        print(f"DEBUG: FIREBASE_SERVICE_ACCOUNT_JSON is broken, Google Login stays disabled: {e}")
+elif os.path.exists(FIREBASE_SERVICE_ACCOUNT_PATH):
+    firebase_cred = firebase_credentials.Certificate(FIREBASE_SERVICE_ACCOUNT_PATH)
+    firebase_admin.initialize_app(firebase_cred)
+    FIREBASE_ENABLED = True
+else:
+    print("DEBUG: No Firebase credentials found. Google Login button stays hidden")
+
+FIREBASE_WEB_CONFIG = {
+    "apiKey": os.environ.get("FIREBASE_API_KEY", ""),
+    "authDomain": os.environ.get("FIREBASE_AUTH_DOMAIN", ""),
+    "projectId": os.environ.get("FIREBASE_PROJECT_ID", ""),
+    "appId": os.environ.get("FIREBASE_APP_ID", ""),
+}
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
 
@@ -93,11 +135,14 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(250), nullable=False) #Quantum Computers shall fall
     role = db.Column(db.String(20), default="user") #you should be the dev
     comments_enabled = db.Column(db.Boolean, default=True)# profile owner can turn comments off completely
-    followed = db.relationship("User", secondary = Friendship.__table__, #make some friends
-                               primaryjoin = (Friendship.sender_id == id),
+    email_verified = db.Column(db.Boolean, default=False)# has to click the link in the mail first
+    firebase_uid = db.Column(db.String(128), nullable=True, unique=True)# set once they log in with Google
+    followed = db.relationship("User", secondary=Friendship.__table__,
+                               primaryjoin=(Friendship.sender_id == id),
                                secondaryjoin=(Friendship.receiver_id == id),
-                               backref="followers", lazy="dynamic"
-                               )
+                               backref="followers",
+                               viewonly=True,
+                               lazy="dynamic")
     #linking more than just one game
     games = db.relationship("Game", backref="user", lazy=True)
 
@@ -182,6 +227,18 @@ class ProfileComment(db.Model):
     profile_user = db.relationship("User", foreign_keys=[profile_user_id], backref="profile_comments")
     author = db.relationship("User", foreign_keys=[author_id])
 
+
+class LoginOTP(db.Model):
+    #short lived 2FA code sent by mail on every login. This happens every login
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    code_hash = db.Column(db.String(250), nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    user = db.relationship("User", backref="login_otps")
+    print("DEBUG MAIL_USERNAME:", repr(app.config["MAIL_USERNAME"]))
+    print("DEBUG MAIL_PASSWORD:", len(app.config["MAIL_PASSWORD"] or ""))
 
 class Screenshot(db.Model):
     id = db.Column(db.Integer, primary_key = True)
@@ -353,6 +410,75 @@ def get_recommended_games(user, limit=6):
     return [games_by_id[gid] for gid in top_ids]
 
 
+def send_email(to, subject, html_body):
+    #Wrapped so we only have ONE place that can blow up
+    if not app.config["MAIL_USERNAME"]:
+        print(f"DEBUG: MAIL_USERNAME not set, skipping mail to {to}: {subject}")
+        return
+    try:
+        msg = Message(subject=subject, recipients=[to], html=html_body)
+        mail.send(msg)
+    except Exception as e:
+        print(f"DEBUG: Mail error: {e}")
+
+
+def _comic_email_shell(headline, body_html):
+    #tiny bit of inline CSS comic styling.
+    return f"""
+    <div style="background:#161616;padding:40px 20px;font-family:Arial,sans-serif;">
+      <div style="max-width:420px;margin:0 auto;background:#161616;border:4px solid #000;
+                  box-shadow:10px 10px 0px #000;padding:32px;">
+        <h1 style="color:#ff3b30;font-size:28px;letter-spacing:1px;margin:0 0 8px 0;">SQUSH</h1>
+        <h2 style="color:#ffe14d;font-size:18px;margin:0 0 20px 0;">{headline}</h2>
+        <div style="color:#eee;font-size:15px;line-height:1.5;">{body_html}</div>
+      </div>
+    </div>
+    """
+
+
+def send_verification_email(user):
+    token = email_serializer.dumps(user.email, salt="email-verify")
+    verify_url = url_for("verify_email", token=token, _external=True)
+    body = f"""
+      <p>Hey {user.username}, nearly finished!</p>
+      <p>Click on the button to confirm your email address:</p>
+      <p style="text-align:center;margin:28px 0;">
+        <a href="{verify_url}"
+           style="background:#33d17a;color:#000;font-weight:bold;text-decoration:none;
+                  padding:12px 24px;border:3px solid #000;display:inline-block;">
+          CONFIRM EMAIL ADDRESS
+        </a>
+      </p>
+      <p style="color:#999;font-size:12px;">The link is valid for 24 hours. Wasn't it you? Just ignore it.</p>
+    """
+    send_email(user.email, "Confirm your Email address", _comic_email_shell("Nearly finished!", body))
+
+
+def send_login_otp(user):
+    code = f"{random.randint(0, 999999):06d}"
+    #kill old codes first
+    LoginOTP.query.filter_by(user_id=user.id).delete()
+    otp = LoginOTP(
+        user_id=user.id,
+        code_hash=generate_password_hash(code),
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=10)
+    )
+    db.session.add(otp)
+    db.session.commit()
+
+    body = f"""
+      <p>Hey {user.username}, here is your login code:</p>
+      <p style="text-align:center;margin:28px 0;">
+        <span style="background:#3aa0ff;color:#000;font-weight:bold;font-size:32px;
+                     letter-spacing:6px;padding:12px 24px;border:3px solid #000;display:inline-block;">
+          {code}
+        </span>
+      </p>
+      <p style="color:#999;font-size:12px;">Valid for 10 minutes. Wasn't it you? To be on the safe side, change your password.</p>
+    """
+    send_email(user.email, "Your Sqush login:", _comic_email_shell("Your login code:", body))
+
+
 def update_daily_stats(game):
     # one row per day.
     today = datetime.now(timezone.utc).date()
@@ -436,14 +562,25 @@ def register():
         email = request.form["email"]
         password = request.form["password"]
         role = request.form["role"]
+        # checkbox is checked by default in the template.
+        require_email_confirmation = "email_confirmation" in request.form
 
         if User.query.filter_by(username=username).first() or User.query.filter_by(email=email).first():
-            return "Username or Email exists! Be faster next time xD", 400
+            flash("Username or Email exists! Be faster next time xD", "error")
+            return redirect(url_for("register"))
 
         new_user = User(username=username, email=email, role=role)
         new_user.set_password(password)
+        new_user.email_verified = not require_email_confirmation
         db.session.add(new_user)
         db.session.commit()
+
+        if require_email_confirmation:
+            send_verification_email(new_user)
+            flash("Almost there! Check your inbox and confirm your email address before logging in (:", "success")
+        else:
+            flash("Account created! You can log in now.", "success")
+
         return redirect(url_for("login"))
     return render_template("register.html")
 
@@ -455,21 +592,163 @@ def login():
         password = request.form["password"]
 
         user = User.query.filter_by(username=username).first()
-        if user and user.check_password(password):
-            login_user(user, remember=True)
-            if user.role == "dev":
-                return redirect(url_for("developer_dashboard"))
-            return redirect(url_for("profile", username=user.username))
-        return "Invalid username or password"
-    return render_template("login.html")
+        if not user or not user.check_password(password):
+            flash("Invalid username or password", "error")
+            return redirect(url_for("login"))
+
+        if not user.email_verified:
+            flash("Please confirm your email address first. Check your mailbox (: Didn't get an email?", "error")
+            session["pending_verification_email"] = user.email
+            return redirect(url_for("login"))
+
+        # password is correct, mail is verified -> now the 2FA gate.
+        # login_user() only happens AFTER the code from verify_2fa() checks out.
+        send_login_otp(user)
+        session["pending_2fa_user_id"] = user.id
+        return redirect(url_for("verify_2fa"))
+
+    return render_template("login.html", firebase_config=FIREBASE_WEB_CONFIG, firebase_enabled=FIREBASE_ENABLED)
+
+
+@app.route("/verify_email/<token>")
+def verify_email(token):
+    try:
+        email = email_serializer.loads(token, salt="email-verify", max_age=60 * 60 * 24)  # 24h
+    except SignatureExpired:
+        flash("The confirmation link expired. Request a new one below", "error")
+        return redirect(url_for("login"))
+    except BadSignature:
+        flash("Wrong confirmation link", "error")
+        return redirect(url_for("login"))
+
+    user = User.query.filter_by(email=email).first()
+    if user:
+        user.email_verified = True
+        db.session.commit()
+        flash("Email verified. You can now login!", "success")
+    return redirect(url_for("login"))
+
+
+@app.route("/resend_verification", methods=["POST"])
+def resend_verification():
+    email = request.form.get("email") or session.get("pending_verification_email")
+    user = User.query.filter_by(email=email).first() if email else None
+    if user and not user.email_verified:
+        send_verification_email(user)
+    # same message either way, don't leak which emails exist in the DB
+    flash("When the Email address exist but isn't confirmed, we sent a new mail one!", "info")
+    return redirect(url_for("login"))
+
+
+@app.route("/login/verify-2fa", methods=["GET", "POST"])
+def verify_2fa():
+    user_id = session.get("pending_2fa_user_id")
+    if not user_id:
+        return redirect(url_for("login"))
+
+    user = db.session.get(User, user_id)
+    if not user:
+        session.pop("pending_2fa_user_id", None)
+        return redirect(url_for("login"))
+
+    if request.method == "POST":
+        code = request.form.get("code", "").strip()
+        otp = LoginOTP.query.filter_by(user_id=user.id).order_by(LoginOTP.created_at.desc()).first()
+
+        if not otp or otp.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+            flash("The code expired. We sent a new one!", "error")
+            send_login_otp(user)
+            return redirect(url_for("verify_2fa"))
+
+        if not check_password_hash(otp.code_hash, code):
+            flash("False code! Try again.", "error")
+            return redirect(url_for("verify_2fa"))
+
+        db.session.delete(otp)
+        db.session.commit()
+        session.pop("pending_2fa_user_id", None)
+        login_user(user, remember=True)
+
+        if user.role == "dev":
+            return redirect(url_for("developer_dashboard"))
+        return redirect(url_for("profile", username=user.username))
+
+    return render_template("verify_2fa.html", email=user.email)
+
+
+@app.route("/login/resend-2fa", methods=["POST"])
+def resend_2fa():
+    user_id = session.get("pending_2fa_user_id")
+    if user_id:
+        user = db.session.get(User, user_id)
+        if user:
+            send_login_otp(user)
+            flash("New code sent (;", "info")
+    return redirect(url_for("verify_2fa"))
+
+
+@app.route("/auth/google-login", methods=["POST"])
+def google_login():
+    # called via fetch
+    if not FIREBASE_ENABLED:
+        return jsonify({"error": "Google Login is not configured on this server"}), 503
+
+    id_token = (request.get_json(silent=True) or {}).get("idToken")
+    if not id_token:
+        return jsonify({"error": "Missing idToken"}), 400
+
+    try:
+        decoded = firebase_auth.verify_id_token(id_token)
+    except Exception as e:
+        print(f"DEBUG: Firebase token error: {e}")
+        return jsonify({"error": "Invalid or expired token"}), 401
+
+    email = decoded.get("email")
+    uid = decoded.get("uid")
+    display_name = decoded.get("name") or (email.split("@")[0] if email else "gamer")
+
+    if not email:
+        return jsonify({"error": "Google account has no email"}), 400
+
+    user = User.query.filter_by(firebase_uid=uid).first()
+    if not user:
+        user = User.query.filter_by(email=email).first()
+
+    if not user:
+        # brand new account, Google already vouches for the mail so no verification step needed
+        base_username = secure_filename(display_name).replace(" ", "_") or "gamer"
+        username = base_username
+        counter = 1
+        while User.query.filter_by(username=username).first():
+            username = f"{base_username}{counter}"
+            counter += 1
+
+        user = User(username=username, email=email, role="user",
+                    email_verified=True, firebase_uid=uid)
+        # nobody logs in with this password
+        user.set_password(os.urandom(16).hex())
+        db.session.add(user)
+        db.session.commit()
+    elif not user.firebase_uid:
+        user.firebase_uid = uid
+        user.email_verified = True
+        db.session.commit()
+
+    # Google Sign in already is strong so we skip 2fa
+    login_user(user, remember=True)
+
+    redirect_url = url_for("developer_dashboard") if user.role == "dev" else url_for("profile", username=user.username)
+    return jsonify({"status": "ok", "redirect": redirect_url})
 
 @app.route("/follow/<username>")
 @login_required
 def follow(username):
     user = User.query.filter_by(username=username).first()
     if user and user != current_user:
-        current_user.followed.append(user)
-        db.session.commit()
+        existing = Friendship.query.filter_by(sender_id=current_user.id, receiver_id=user.id).first()
+        if not existing:
+            db.session.add(Friendship(sender_id=current_user.id, receiver_id=user.id, status="accepted"))
+            db.session.commit()
     return redirect(url_for('profile', username=username))
 
 @app.route("/rate_game/<int:game_id>", methods = ["POST"])

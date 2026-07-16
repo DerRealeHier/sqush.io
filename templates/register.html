@@ -79,12 +79,48 @@
 
         .auth-switch-link { color: var(--blue); font-weight: 700; text-decoration: none; }
         .auth-switch-link:hover { color: var(--yellow); }
+
+        .flash-box {
+            border: 3px solid #000;
+            padding: 10px 14px;
+            margin-bottom: 16px;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+        .flash-error { background: var(--red); color: #fff; }
+        .flash-success { background: var(--green); color: #000; }
+        .flash-info { background: var(--blue); color: #000; }
+
+        .email-confirm-toggle {
+            border: 3px solid #000;
+            background: #222;
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .email-confirm-toggle input[type="checkbox"] {
+            width: 20px; height: 20px; accent-color: var(--green); flex-shrink: 0;
+        }
+        .email-confirm-toggle label {
+            color: #ddd; font-size: 0.8rem; text-transform: none; font-weight: 700; margin: 0;
+        }
+        .email-confirm-toggle small { display:block; color:#888; font-weight:400; text-transform:none; }
     </style>
 </head>
 <body>
 <div class="auth-card">
     <h2 class="text-center mb-4">SQUSH</h2>
     <h5 class="text-center mb-4">Register</h5>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="flash-box flash-{{ category }}">{{ message }}</div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
     <form method="POST" action="/register">
         <div class="mb-3">
             <label class="form-label">Username</label>
@@ -98,12 +134,19 @@
             <label class="form-label">Password</label>
             <input type="password" name="password" class="form-control" required>
         </div>
-        <div class="mb-4">
+        <div class="mb-3">
             <label class="form-label">Account Type</label>
             <select name="role" class="form-select">
                 <option value="user">Gamer (Buy games &amp; download them)</option>
                 <option value="dev">Developer (Publish games)</option>
             </select>
+        </div>
+        <div class="mb-4 email-confirm-toggle">
+            <input type="checkbox" id="email_confirmation" name="email_confirmation" checked>
+            <label for="email_confirmation">
+                Activate Email Confirmation
+                <small>Send a confirmation link. For quick testing, you can tick this off. (But please don't) Firebase is used for this</small>
+            </label>
         </div>
         <button type="submit" class="btn btn-comic-auth w-100 py-2 mb-3">Registrieren</button>
         <div class="text-center">
