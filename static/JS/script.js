@@ -161,22 +161,52 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ---- Filtering for the store ----
+    // ---- Filtering for the store (multi-select genres/tags + price range) ----
     const storeSearch = document.getElementById('storeSearch');
-    const genreFilter = document.getElementById('genreFilter');
-    const tagFilter = document.getElementById('tagFilter');
-    const priceFilter = document.getElementById('priceFilter');
+    const genreCheckboxes = document.querySelectorAll('.genre-checkbox');
+    const tagCheckboxes = document.querySelectorAll('.tag-checkbox');
+    const priceMinFilter = document.getElementById('priceMinFilter');
+    const priceMaxFilter = document.getElementById('priceMaxFilter');
     const saleFilter = document.getElementById('saleFilter');
+    const clearFiltersBtn = document.getElementById('clearFiltersBtn');
     const gameItems = document.querySelectorAll('.store-game-item');
+    const genreHeadings = document.querySelectorAll('.genre-heading');
     const storeNoMatchMsg = document.getElementById('storeNoMatchMessage');
+    const genreActiveCount = document.getElementById('genreActiveCount');
+    const tagActiveCount = document.getElementById('tagActiveCount');
+
+    function getCheckedValues(checkboxes) {
+        return Array.from(checkboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value.toLowerCase());
+    }
+
+    function updateActiveCountBadge(badgeEl, count) {
+        if (!badgeEl) return;
+        if (count > 0) {
+            badgeEl.textContent = `(${count})`;
+            badgeEl.classList.remove('d-none');
+        } else {
+            badgeEl.classList.add('d-none');
+        }
+    }
 
     function filterGames() {
         const query = storeSearch.value.toLowerCase().trim();
-        const genre = genreFilter.value;
-        const tagQuery = tagFilter.value.toLowerCase().trim();
-        const maxPrice = parseFloat(priceFilter.value);
+        // Mehrere Genres gleichzeitig moeglich -> leer heisst "alle"
+        const selectedGenres = getCheckedValues(genreCheckboxes);
+        // Mehrere Tags gleichzeitig moeglich -> leer heisst "alle"
+        const selectedTags = getCheckedValues(tagCheckboxes);
+        const minPrice = parseFloat(priceMinFilter.value);
+        const maxPrice = parseFloat(priceMaxFilter.value);
         const onlySale = saleFilter.checked;
+
+        updateActiveCountBadge(genreActiveCount, selectedGenres.length);
+        updateActiveCountBadge(tagActiveCount, selectedTags.length);
+
         let matches = 0;
+        // wie viele sichtbare Spiele pro Genre-Ueberschrift, damit leere Ueberschriften verschwinden
+        const visibleCountByGenre = {};
 
         gameItems.forEach(item => {
             const itemTitle = item.getAttribute('data-title');
@@ -186,16 +216,32 @@ document.addEventListener('DOMContentLoaded', () => {
             const itemTags = JSON.parse(item.getAttribute('data-tags') || "[]");
 
             const matchTitle = itemTitle.includes(query);
-            const matchGenre = (genre === 'all' || itemGenre === genre);
-            const matchPrice = (isNaN(maxPrice) || itemPrice <= maxPrice);
-            const matchSale = (!onlySale || itemIsSale);
-            const matchTag = (tagQuery === '' || itemTags.some(t => t.includes(tagQuery)));
+            // Genre matcht, wenn keins ausgewaehlt ist ODER das Spiel in einem der ausgewaehlten Genres ist
+            const matchGenre = selectedGenres.length === 0 || selectedGenres.includes(itemGenre.toLowerCase());
+            // Tag matcht, wenn keins ausgewaehlt ist ODER mindestens einer der ausgewaehlten Tags dabei ist
+            const matchTags = selectedTags.length === 0 || selectedTags.some(t => itemTags.includes(t));
+            const matchMinPrice = isNaN(minPrice) || itemPrice >= minPrice;
+            const matchMaxPrice = isNaN(maxPrice) || itemPrice <= maxPrice;
+            const matchSale = !onlySale || itemIsSale;
 
-            if (matchTitle && matchGenre && matchPrice && matchSale && matchTag) {
+            const isVisible = matchTitle && matchGenre && matchTags && matchMinPrice && matchMaxPrice && matchSale;
+
+            if (isVisible) {
                 item.classList.remove('d-none');
                 matches++;
+                visibleCountByGenre[itemGenre] = (visibleCountByGenre[itemGenre] || 0) + 1;
             } else {
                 item.classList.add('d-none');
+            }
+        });
+
+        // Ueberschrift ausblenden, wenn kein Spiel dieses Genres mehr sichtbar ist
+        genreHeadings.forEach(heading => {
+            const genre = heading.getAttribute('data-genre-heading');
+            if ((visibleCountByGenre[genre] || 0) > 0) {
+                heading.classList.remove('d-none');
+            } else {
+                heading.classList.add('d-none');
             }
         });
 
@@ -208,12 +254,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    if (storeSearch && genreFilter && tagFilter && priceFilter && saleFilter) {
+    if (storeSearch && priceMinFilter && priceMaxFilter && saleFilter && gameItems.length > 0) {
         storeSearch.addEventListener('input', filterGames);
-        genreFilter.addEventListener('change', filterGames);
-        tagFilter.addEventListener('input', filterGames);
-        priceFilter.addEventListener('input', filterGames);
+        priceMinFilter.addEventListener('input', filterGames);
+        priceMaxFilter.addEventListener('input', filterGames);
         saleFilter.addEventListener('change', filterGames);
+        genreCheckboxes.forEach(cb => cb.addEventListener('change', filterGames));
+        tagCheckboxes.forEach(cb => cb.addEventListener('change', filterGames));
+
+        if (clearFiltersBtn) {
+            clearFiltersBtn.addEventListener('click', () => {
+                storeSearch.value = '';
+                priceMinFilter.value = '';
+                priceMaxFilter.value = '';
+                saleFilter.checked = false;
+                genreCheckboxes.forEach(cb => cb.checked = false);
+                tagCheckboxes.forEach(cb => cb.checked = false);
+                filterGames();
+            });
+        }
+
+        // so we start it one time in the browser
+        filterGames();
     }
 
     // Hover to preview video for home and store cards

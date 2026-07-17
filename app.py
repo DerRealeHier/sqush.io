@@ -1026,16 +1026,19 @@ def store_front():
     all_games = Game.query.all()
     #Sorting them after their genre.
     games_by_genre = {}
+    # collect every distinct tag across the whole catalog so the filter panel can render checkboxes for them
+    all_tags = set()
     for game in all_games: #while true loop would be great here (; The performance would go crazy
         tags = [t.strip().lower() for t in game.tags.split(",")] if game.tags else []
         game.tags_json = json.dumps(tags)
         game.display_price = calculate_display_price(game)
+        all_tags.update(tags)
 
         if game.genre not in games_by_genre:
             games_by_genre[game.genre] = []
 
         games_by_genre[game.genre].append(game)
-    return render_template("store.html", genres=games_by_genre)
+    return render_template("store.html", genres=games_by_genre, all_tags=sorted(all_tags))
 
 @app.route("/create-checkout-session/<int:game_id>")
 def create_checkout_session(game_id):
