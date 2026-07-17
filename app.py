@@ -137,6 +137,8 @@ class User(UserMixin, db.Model):
     comments_enabled = db.Column(db.Boolean, default=True)# profile owner can turn comments off completely
     email_verified = db.Column(db.Boolean, default=False)# has to click the link in the mail first
     firebase_uid = db.Column(db.String(128), nullable=True, unique=True)# set once they log in with Google
+    two_fa_enabled = db.Column(db.Boolean, default=True)# user can turn the login-code mail off on the settings page
+    needs_username_setup = db.Column(db.Boolean, default=False)# True right after a fresh Google signup, until they pick their own name
     followed = db.relationship("User", secondary=Friendship.__table__,
                                primaryjoin=(Friendship.sender_id == id),
                                secondaryjoin=(Friendship.receiver_id == id),
@@ -454,6 +456,25 @@ def send_verification_email(user):
     send_email(user.email, "Confirm your Email address", _comic_email_shell("Nearly finished!", body))
 
 
+def send_email_change_verification(user, new_email):
+    # separate salt so this token can never be replayed against verify_email
+    token = email_serializer.dumps({"user_id": user.id, "new_email": new_email}, salt="email-change")
+    verify_url = url_for("verify_email_change", token=token, _external=True)
+    body = f"""
+      <p>Hey {user.username}, you asked to change your Email address to this one.</p>
+      <p>Click on the button to confirm the new address:</p>
+      <p style="text-align:center;margin:28px 0;">
+        <a href="{verify_url}"
+           style="background:#3aa0ff;color:#000;font-weight:bold;text-decoration:none;
+                  padding:12px 24px;border:3px solid #000;display:inline-block;">
+          CONFIRM NEW EMAIL ADDRESS
+        </a>
+      </p>
+      <p style="color:#999;font-size:12px;">The link is valid for 24 hours. Wasn't it you? Just ignore it and your old address stays active.</p>
+    """
+    send_email(new_email, "Confirm your new Email address", _comic_email_shell("New address, who dis?", body))
+
+
 def send_login_otp(user):
     code = f"{random.randint(0, 999999):06d}"
     #kill old codes first
@@ -601,6 +622,13 @@ def login():
             session["pending_verification_email"] = user.email
             return redirect(url_for("login"))
 
+        # if the user turned 2FA off in their settings we skip the code mail entirely.
+        if not user.two_fa_enabled:
+            login_user(user, remember=True)
+            if user.role == "dev":
+                return redirect(url_for("developer_dashboard"))
+            return redirect(url_for("profile", username=user.username))
+
         # password is correct, mail is verified -> now the 2FA gate.
         # login_user() only happens AFTER the code from verify_2fa() checks out.
         send_login_otp(user)
@@ -627,6 +655,38 @@ def verify_email(token):
         db.session.commit()
         flash("Email verified. You can now login!", "success")
     return redirect(url_for("login"))
+
+
+@app.route("/verify_email_change/<token>")
+@login_required
+def verify_email_change(token):
+    try:
+        data = email_serializer.loads(token, salt="email-change", max_age=60 * 60 * 24)  # 24h
+    except SignatureExpired:
+        flash("The confirmation link expired. Request the change again on the settings page", "error")
+        return redirect(url_for("settings"))
+    except BadSignature:
+        flash("Wrong confirmation link", "error")
+        return redirect(url_for("settings"))
+
+    if data.get("user_id") != current_user.id:
+        flash("This link doesn't belong to your account", "error")
+        return redirect(url_for("settings"))
+
+    new_email = data.get("new_email")
+    if not new_email:
+        return redirect(url_for("settings"))
+
+    # someone else might have grabbed that address in the meantime
+    if User.query.filter(User.email == new_email, User.id != current_user.id).first():
+        flash("That Email address is already in use by another account", "error")
+        return redirect(url_for("settings"))
+
+    current_user.email = new_email
+    current_user.email_verified = True
+    db.session.commit()
+    flash("Your new Email address is confirmed!", "success")
+    return redirect(url_for("settings"))
 
 
 @app.route("/resend_verification", methods=["POST"])
@@ -724,7 +784,8 @@ def google_login():
             counter += 1
 
         user = User(username=username, email=email, role="user",
-                    email_verified=True, firebase_uid=uid)
+                    email_verified=True, firebase_uid=uid,
+                    needs_username_setup=True)  # let them pick their own name on first login
         # nobody logs in with this password
         user.set_password(os.urandom(16).hex())
         db.session.add(user)
@@ -737,8 +798,127 @@ def google_login():
     # Google Sign in already is strong so we skip 2fa
     login_user(user, remember=True)
 
-    redirect_url = url_for("developer_dashboard") if user.role == "dev" else url_for("profile", username=user.username)
+    if user.needs_username_setup:
+        redirect_url = url_for("choose_username")
+    else:
+        redirect_url = url_for("developer_dashboard") if user.role == "dev" else url_for("profile", username=user.username)
     return jsonify({"status": "ok", "redirect": redirect_url})
+
+
+@app.route("/choose-username", methods=["GET", "POST"])
+@login_required
+def choose_username():
+    #only relevant right after the first Google login
+    if request.method == "POST":
+        new_username = request.form.get("username", "").strip()
+
+        if len(new_username) < 3 or len(new_username) > 64:
+            flash("Your username needs to be between 3 and 64 characters", "error")
+            return redirect(url_for("choose_username"))
+
+        existing = User.query.filter(User.username == new_username, User.id != current_user.id).first()
+        if existing:
+            flash("That username is already taken, be more creative (;", "error")
+            return redirect(url_for("choose_username"))
+
+        current_user.username = new_username
+        current_user.needs_username_setup = False
+        db.session.commit()
+        flash("Nice, that's your username now!", "success")
+
+        if current_user.role == "dev":
+            return redirect(url_for("developer_dashboard"))
+        return redirect(url_for("profile", username=current_user.username))
+
+    return render_template("choose_username.html", suggested_username=current_user.username)
+
+
+#The one help page for everything account related
+@app.route("/settings")
+@login_required
+def settings():
+    return render_template("settings.html")
+
+
+@app.route("/settings/username", methods=["POST"])
+@login_required
+def update_username():
+    new_username = request.form.get("username", "").strip()
+
+    if len(new_username) < 3 or len(new_username) > 64:
+        flash("Your username needs to be between 3 and 64 characters", "error")
+        return redirect(url_for("settings"))
+
+    existing = User.query.filter(User.username == new_username, User.id != current_user.id).first()
+    if existing:
+        flash("That username is already taken", "error")
+        return redirect(url_for("settings"))
+
+    old_username = current_user.username
+    current_user.username = new_username
+    db.session.commit()
+    flash(f"Username changed from {old_username} to {new_username}!", "success")
+    return redirect(url_for("settings"))
+
+
+@app.route("/settings/email", methods=["POST"])
+@login_required
+def update_email():
+    new_email = request.form.get("email", "").strip().lower()
+
+    if not new_email or "@" not in new_email:
+        flash("That doesn't look like a valid Email address", "error")
+        return redirect(url_for("settings"))
+
+    if new_email == current_user.email:
+        flash("That's already your Email address (:", "info")
+        return redirect(url_for("settings"))
+
+    if User.query.filter(User.email == new_email, User.id != current_user.id).first():
+        flash("That Email address is already used by another account", "error")
+        return redirect(url_for("settings"))
+
+    send_email_change_verification(current_user, new_email)
+    flash("We sent a confirmation link to your new Email address. Click it to make the change final!", "success")
+    return redirect(url_for("settings"))
+
+
+@app.route("/settings/password", methods=["POST"])
+@login_required
+def update_password():
+    current_password = request.form.get("current_password", "")
+    new_password = request.form.get("new_password", "")
+    new_password_repeat = request.form.get("new_password_repeat", "")
+
+    if not current_user.check_password(current_password):
+        flash("Your current password is wrong", "error")
+        return redirect(url_for("settings"))
+
+    if len(new_password) < 8:
+        flash("Your new password needs at least 8 characters", "error")
+        return redirect(url_for("settings"))
+
+    if new_password != new_password_repeat:
+        flash("The new passwords don't match", "error")
+        return redirect(url_for("settings"))
+
+    current_user.set_password(new_password)
+    db.session.commit()
+    flash("Password changed!", "success")
+    return redirect(url_for("settings"))
+
+
+@app.route("/settings/2fa/toggle", methods=["POST"])
+@login_required
+def toggle_2fa():
+    current_user.two_fa_enabled = not current_user.two_fa_enabled
+    db.session.commit()
+    if current_user.two_fa_enabled:
+        flash("2FA is now enabled. You'll get a login code by mail from now on.", "success")
+    else:
+        flash("2FA is now disabled. Careful out there (:", "info")
+    return redirect(url_for("settings"))
+
 
 @app.route("/follow/<username>")
 @login_required
