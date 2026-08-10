@@ -14,6 +14,7 @@ from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 import firebase_admin
 from firebase_admin import credentials as firebase_credentials, auth as firebase_auth
+import clamd  # security scan for game uploads
 
 # Stripe API Keys.
 load_dotenv()
@@ -65,9 +66,20 @@ FIREBASE_WEB_CONFIG = {
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
 
+# Only these extensions are allowed for the actual game/demo download, everything
+# else gets rejected before it ever touches the scanner (belt and suspenders).
+ALLOWED_GAME_EXTENSIONS = {"zip", "exe"}
+CLAMAV_ENABLED = os.environ.get("CLAMAV_ENABLED", "false").lower() == "true"
+CLAMAV_HOST = os.environ.get("CLAMAV_HOST", "localhost")
+CLAMAV_PORT = int(os.environ.get("CLAMAV_PORT", 3310))
+
 def allowed_file(filename):
     return '.' in filename and \
         filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def allowed_game_file(filename):
+    return '.' in filename and \
+        filename.rsplit('.', 1)[1].lower() in ALLOWED_GAME_EXTENSIONS
 
 @app.context_processor
 def inject_global_data():
@@ -186,6 +198,23 @@ class Game(db.Model):
     #My Foreign Key (:
     developer_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable = False)
 
+
+class GameUpdate(db.Model):
+    """
+    One row per uploaded build for a game. Not just overwriting Game.download_path,
+    so we get a changelog/version history for free. This is also the table to hang
+    devlog/vlog stuff off of later (e.g. a video_url column) without a redesign.
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    game_id = db.Column(db.Integer, db.ForeignKey("game.id"), nullable=False)
+    file_path = db.Column(db.String(250), nullable=False)
+    version_label = db.Column(db.String(50), nullable=True)  # e.g. "v1.2", optional
+    patch_notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    game = db.relationship("Game", backref="updates")
+
+
 class Purchase(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
@@ -291,6 +320,69 @@ def save_file(file, folder=None):
         relative_folder = os.path.basename(target_folder)
         return f"{relative_folder}/{filename}"
     return None
+
+
+def get_clamd_client():
+    # only one error at a time
+    if not CLAMAV_ENABLED:
+        return None
+    try:
+        cd = clamd.ClamdNetworkSocket(host=CLAMAV_HOST, port=CLAMAV_PORT)
+        cd.ping()
+        return cd
+    except Exception as e:
+        print(f"DEBUG: Cant reach ClamAV: {e}")
+        return None
+
+
+def scan_filestorage_for_malware(file_storage):
+
+    if not CLAMAV_ENABLED:
+        print(f"DEBUG: ClamAV deactivated, Scan for {file_storage.filename} skipped")
+        return True, "Scan skipped (ClamAV not configured)"
+
+    cd = get_clamd_client()
+    if cd is None:
+        return False, "Security scanner is currently unavailable, upload rejected"
+
+    try:
+        file_storage.stream.seek(0)
+        result = cd.instream(file_storage.stream)
+        file_storage.stream.seek(0)  # rewind, we still need to file.save() this afterwards xD
+    except Exception as e:
+        # just so I know if I messed up some configsetting or something.
+        print(f"DEBUG: ClamAV instream Fehler: {e}")
+        return False, "Security scanner error, upload rejected"
+
+    if not result:
+        return True, "Clean"
+
+    status, signature = result.get("stream", (None, None))
+    if status == "FOUND":
+        return False, f"Malware detected ({signature})"
+    return True, "Clean"
+
+
+def save_game_file(file, folder=None):
+
+    if not file or not file.filename:
+        return None, None
+
+    if not allowed_game_file(file.filename):
+        return None, "Only .zip or .exe files are allowed here"
+
+    is_clean, message = scan_filestorage_for_malware(file)
+    if not is_clean:
+        print(f"DEBUG: Upload rejected ({file.filename}): {message}")
+        return None, message
+
+    target_folder = folder or app.config['UPLOAD_FOLDER']
+    filename = secure_filename(file.filename)
+    full_path = os.path.join(target_folder, filename)
+    file.save(full_path)
+
+    relative_folder = os.path.basename(target_folder)
+    return f"{relative_folder}/{filename}", None
 
 def calculate_game_revenue(game):
     # yea you aint getting the old money back.
@@ -1334,10 +1426,14 @@ def edit_game(game_id):
         game.is_on_sale = "is_on_sale" in request.form
         game.discount_percent = int(request.form.get("discount_percent", 0))
 
-        # only overwrite the demo if the dev actually picked a new file
+        # only overwrites the demo if it actually passes the secruity check
         demo_file = request.files.get("demo_file")
         if demo_file and demo_file.filename:
-            game.demo_path = save_file(demo_file)
+            new_demo_path, demo_error = save_game_file(demo_file)
+            if demo_error:
+                flash(f"Demo file rejected: {demo_error}", "error")
+                return redirect(url_for("edit_game", game_id=game.id))
+            game.demo_path = new_demo_path
 
         files = request.files.getlist("screenshots")
         for f in files:
@@ -1355,6 +1451,47 @@ def edit_game(game_id):
         db.session.commit()
         return redirect(url_for("developer_dashboard"))
     return render_template("edit_game.html",game=game)
+
+
+@app.route("/dashboard/game/<int:game_id>/update", methods=["GET", "POST"])
+@login_required
+def update_game(game_id):
+    #I will add vlogs tommorow so its already a table there.
+    game = Game.query.get_or_404(game_id)
+    if current_user.role != "dev":
+        return "Access Denied. How could you?", 403
+    if game.developer_id != current_user.id:
+        return "Access Denied: Better Luck next time (:", 403
+
+    if request.method == "POST":
+        version_label = request.form.get("version_label", "").strip() or None
+        patch_notes = request.form.get("patch_notes", "").strip() or None
+        new_file = request.files.get("game_file")
+
+        if not new_file or not new_file.filename:
+            flash("Pick a file for the update", "error")
+            return redirect(url_for("update_game", game_id=game.id))
+
+        new_path, error = save_game_file(new_file)
+        if error:
+            flash(f"Update rejected: {error}", "error")
+            return redirect(url_for("update_game", game_id=game.id))
+
+        game.download_path = new_path
+        update_entry = GameUpdate(
+            game_id=game.id,
+            file_path=new_path,
+            version_label=version_label,
+            patch_notes=patch_notes
+        )
+        db.session.add(update_entry)
+        db.session.commit()
+        flash("Game updated! The new build is live.", "success")
+        return redirect(url_for("developer_dashboard"))
+
+    history = GameUpdate.query.filter_by(game_id=game.id).order_by(GameUpdate.created_at.desc()).all()
+    return render_template("update_game.html", game=game, history=history)
+
 
 @app.route("/config")
 def get_publishable_key():
@@ -1408,8 +1545,19 @@ def developer_dashboard():
         else:
             video_path = "https://www.youtube.com/watch?v=E4WlUXrJgy4"
 
-        download_path = save_file(game_file) if game_file else ""
-        demo_path = save_file(demo_file) if demo_file and demo_file.filename else None
+        #well all of this is getting scanned. (For secruity reasons of course(: )
+        download_path, game_file_error = save_game_file(game_file)
+        if game_file_error:
+            flash(f"Game file rejected: {game_file_error}", "error")
+            return redirect(url_for("developer_dashboard"))
+        if not download_path:
+            flash("You need to upload a game file", "error")
+            return redirect(url_for("developer_dashboard"))
+
+        demo_path, demo_file_error = save_game_file(demo_file)
+        if demo_file_error:
+            flash(f"Demo file rejected: {demo_file_error}", "error")
+            return redirect(url_for("developer_dashboard"))
 
         new_game = Game(title=title, genre=genre, priority=priority, tags=tags, price=price,
                         image_path=image_path, video_path=video_path, description=description,
