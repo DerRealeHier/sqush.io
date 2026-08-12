@@ -102,9 +102,17 @@ def inject_global_data():
         except Exception as e:
             print(f"DEBUG: Wishlist Fehler: {e}")
             data["wishlist_ids"] = set()
+
+        try:
+            following_game_ids = {f.game_id for f in GameFollow.query.filter_by(user_id=current_user.id).all()}
+            data["following_game_ids"] = following_game_ids
+        except Exception as e:
+            print(f"DEBUG: GameFollow Fehler: {e}")
+            data["following_game_ids"] = set()
     else:
         data["unread_count"] = 0
         data["wishlist_ids"] = set()
+        data["following_game_ids"] = set()
 
     return data
 
@@ -202,17 +210,54 @@ class Game(db.Model):
 class GameUpdate(db.Model):
     """
     One row per uploaded build for a game. Not just overwriting Game.download_path,
-    so we get a changelog/version history for free. This is also the table to hang
-    devlog/vlog stuff off of later (e.g. a video_url column) without a redesign.
+    so we get a changelog/version history for free. Also carries view/vote counts now
+    so updates work like a mini devlog/vlog feed (see UpdateComment / UpdateVote below).
     """
     id = db.Column(db.Integer, primary_key=True)
     game_id = db.Column(db.Integer, db.ForeignKey("game.id"), nullable=False)
     file_path = db.Column(db.String(250), nullable=False)
     version_label = db.Column(db.String(50), nullable=True)  # e.g. "v1.2", optional
     patch_notes = db.Column(db.Text, nullable=True)
+    view_count = db.Column(db.Integer, default=0)
+    upvotes = db.Column(db.Integer, default=0)
+    downvotes = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
-    game = db.relationship("Game", backref="updates")
+    # newest update first, everywhere we touch game.updates
+    game = db.relationship("Game", backref=db.backref("updates", order_by="GameUpdate.created_at.desc()"))
+
+
+class UpdateComment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    update_id = db.Column(db.Integer, db.ForeignKey("game_update.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    update = db.relationship("GameUpdate", backref=db.backref("comments", order_by="UpdateComment.created_at.desc()"))
+    user = db.relationship("User")
+
+
+class UpdateVote(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    update_id = db.Column(db.Integer, db.ForeignKey("game_update.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    vote_type = db.Column(db.String(10), nullable=False)  # "up" or "down"
+
+    update = db.relationship("GameUpdate", backref="votes")
+    __table_args__ = (db.UniqueConstraint('update_id', 'user_id', name='unique_update_vote'),)
+
+
+class GameFollow(db.Model):
+    # lets a user get notified whenever the game they follow ships a new GameUpdate
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    game_id = db.Column(db.Integer, db.ForeignKey("game.id"), nullable=False)
+    followed_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    user = db.relationship("User", backref="followed_games")
+    game = db.relationship("Game", backref="game_followers")
+    __table_args__ = (db.UniqueConstraint('user_id', 'game_id', name='unique_game_follow'),)
 
 
 class Purchase(db.Model):
@@ -1023,6 +1068,24 @@ def follow(username):
             db.session.commit()
     return redirect(url_for('profile', username=username))
 
+
+@app.route("/follow_game/<int:game_id>", methods=["POST"])
+@login_required
+def follow_game(game_id):
+    # totally separate from the user Friendship
+    # is about getting notified when a specific GAME ships a new update.
+    game = Game.query.get_or_404(game_id)
+    existing = GameFollow.query.filter_by(user_id=current_user.id, game_id=game.id).first()
+    if existing:
+        db.session.delete(existing)
+        db.session.commit()
+        return jsonify({"status": "unfollowed", "following": False})
+    else:
+        db.session.add(GameFollow(user_id=current_user.id, game_id=game.id))
+        db.session.commit()
+        return jsonify({"status": "followed", "following": True})
+
+
 @app.route("/rate_game/<int:game_id>", methods = ["POST"])
 @login_required
 def rate_game(game_id):
@@ -1092,6 +1155,106 @@ def vote_review(review_id, vote_type):
 
     db.session.commit()
     return jsonify({"helpful": review.helpful_count, "funny": review.funny_count})
+
+
+#Same toggle idea as vote_review but for GameUpdate posts and up/down.
+@app.route("/update/<int:update_id>/vote/<vote_type>", methods=["POST"])
+@login_required
+def vote_update(update_id, vote_type):
+    if vote_type not in ("up", "down"):
+        return "Invalid vote type", 400
+    update = GameUpdate.query.get_or_404(update_id)
+
+    if update.upvotes is None:
+        update.upvotes = 0
+    if update.downvotes is None:
+        update.downvotes = 0
+
+    existing = UpdateVote.query.filter_by(update_id=update_id, user_id=current_user.id).first()
+    if existing:
+        if existing.vote_type == vote_type:
+            # clicked the same button again removes the vote
+            db.session.delete(existing)
+            if vote_type == "up":
+                update.upvotes -= 1
+            else:
+                update.downvotes -= 1
+        else:
+            # switched from up to down or other way around
+            if existing.vote_type == "up":
+                update.upvotes -= 1
+                update.downvotes += 1
+            else:
+                update.downvotes -= 1
+                update.upvotes += 1
+            existing.vote_type = vote_type
+    else:
+        db.session.add(UpdateVote(update_id=update_id, user_id=current_user.id, vote_type=vote_type))
+        if vote_type == "up":
+            update.upvotes += 1
+        else:
+            update.downvotes += 1
+
+    db.session.commit()
+    return jsonify({"upvotes": update.upvotes, "downvotes": update.downvotes})
+
+
+@app.route("/update/<int:update_id>/comment", methods=["POST"])
+@login_required
+def comment_update(update_id):
+    update = GameUpdate.query.get_or_404(update_id)
+    content = request.form.get("content", "").strip()
+    if content:
+        db.session.add(UpdateComment(update_id=update.id, user_id=current_user.id, content=content))
+        db.session.commit()
+    # send them back to wherever they came from
+    return redirect(request.referrer or url_for("game_detail", game_id=update.game_id))
+
+
+@app.route("/update_view/<int:update_id>", methods=["POST"])
+def increment_update_view(update_id):
+    update = GameUpdate.query.get_or_404(update_id)
+    update.view_count += 1
+    db.session.commit()
+    return jsonify({"status": "success", "views": update.view_count})
+
+
+@app.route("/updates")
+@login_required
+def updates_feed():
+    tab = request.args.get("tab", "owned")
+
+    owned_game_ids = {p.game_id for p in Purchase.query.filter_by(user_id=current_user.id).all()}
+
+    if tab == "friends":
+        friendships = Friendship.query.filter(
+            ((Friendship.sender_id == current_user.id) | (Friendship.receiver_id == current_user.id)),
+            Friendship.status == "accepted"
+        ).all()
+        friend_ids = {
+            f.receiver_id if f.sender_id == current_user.id else f.sender_id
+            for f in friendships
+        }
+        friend_game_ids = {
+            p.game_id for p in Purchase.query.filter(Purchase.user_id.in_(friend_ids)).all()
+        } if friend_ids else set()
+        updates = GameUpdate.query.filter(GameUpdate.game_id.in_(friend_game_ids)) \
+            .order_by(GameUpdate.created_at.desc()).all() if friend_game_ids else []
+
+    elif tab == "all":
+        updates = GameUpdate.query.order_by(GameUpdate.created_at.desc()).all()
+
+    else:
+        tab = "owned"
+        updates = GameUpdate.query.filter(GameUpdate.game_id.in_(owned_game_ids)) \
+            .order_by(GameUpdate.created_at.desc()).all() if owned_game_ids else []
+
+    following_ids = {f.game_id for f in GameFollow.query.filter_by(user_id=current_user.id).all()}
+    my_votes = {v.update_id: v.vote_type for v in UpdateVote.query.filter_by(user_id=current_user.id).all()}
+
+    return render_template("updates.html", updates=updates, tab=tab,
+                           following_ids=following_ids, my_votes=my_votes)
+
 
 @app.route("/notification/read/<int:notif_id>")
 @login_required
@@ -1406,7 +1569,20 @@ def game_detail(game_id):
     #Lets do Math (:
     game.display_price = calculate_display_price(game)
 
-    return render_template("game_detail.html",game=game, screenshots=screenshots, videos=videos,average_score=average_score,reviews=reviews)
+    # follow status and my own up/downvotes on this game's updates, only relevant when logged in
+    is_following = False
+    my_update_votes = {}
+    if current_user.is_authenticated:
+        is_following = GameFollow.query.filter_by(user_id=current_user.id, game_id=game.id).first() is not None
+        my_update_votes = {
+            v.update_id: v.vote_type for v in
+            UpdateVote.query.join(GameUpdate, UpdateVote.update_id == GameUpdate.id)
+            .filter(GameUpdate.game_id == game.id, UpdateVote.user_id == current_user.id).all()
+        }
+
+    return render_template("game_detail.html", game=game, screenshots=screenshots, videos=videos,
+                           average_score=average_score, reviews=reviews,
+                           is_following=is_following, my_update_votes=my_update_votes)
 
 @app.route("/edit_game/<int:game_id>", methods = ["GET", "POST"])
 @login_required
@@ -1486,6 +1662,20 @@ def update_game(game_id):
         )
         db.session.add(update_entry)
         db.session.commit()
+
+        # tell everyone who follows this game that a fresh update just dropped
+        followers = GameFollow.query.filter_by(game_id=game.id).all()
+        for f in followers:
+            if f.user_id != current_user.id:
+                db.session.add(Notification(
+                    user_id=f.user_id,
+                    message=f"{game.title} got a new update"
+                            + (f" ({version_label})" if version_label else "")
+                            + "!",
+                    type="game_update"
+                ))
+        db.session.commit()
+
         flash("Game updated! The new build is live.", "success")
         return redirect(url_for("developer_dashboard"))
 

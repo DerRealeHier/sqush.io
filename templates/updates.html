@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Game Updates</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/style.css') }}">
+    <style>
+        :root{
+            --ink:#0d0d0d;
+            --paper:#161616;
+            --yellow:#ffe14d;
+            --red:#ff3b30;
+            --blue:#3aa0ff;
+            --green:#33d17a;
+        }
+        body {
+            background-color: var(--ink);
+            background-image: radial-gradient(rgba(255,255,255,0.06) 1.5px, transparent 1.5px);
+            background-size: 14px 14px;
+            color: #fff;
+            font-family: 'Comic Neue', sans-serif;
+        }
+
+        h1, .comic-font { font-family: 'Bangers', 'Comic Neue', sans-serif; letter-spacing: 1px; }
+
+        .updates-tab-btn {
+            font-family: 'Bangers', sans-serif;
+            letter-spacing: 1px;
+            font-size: 1.2rem;
+            border: 3px solid #000;
+            box-shadow: 5px 5px 0px #000;
+            padding: 8px 22px;
+            text-decoration: none;
+            color: #000;
+            background: #9e9e9e;
+            transition: all 0.15s ease;
+            display: inline-block;
+        }
+        .updates-tab-btn:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 7px 7px 0px #000;
+        }
+        .updates-tab-btn.active {
+            background: var(--blue);
+            color: #000;
+        }
+
+        .update-game-link {
+            color: var(--yellow);
+            text-decoration: none;
+            font-size: 1.1rem;
+            text-shadow: 1px 1px 0px rgba(0,0,0,0.6);
+        }
+        .update-game-link:hover {
+            color: #fff;
+        }
+
+
+        .review-font {
+            font-family: 'Comic Neue', sans-serif;
+            font-size: 1rem;
+            line-height: 1.5;
+            color: #f0f0f0;
+        }
+
+
+        .msg-yellow {
+            background: #fff4cc;
+            color: #1a1a1a;
+            border: 3px solid var(--yellow);
+            box-shadow: 5px 5px 0px #000;
+            padding: 14px 20px;
+            font-family: 'Comic Neue', sans-serif;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+
+<nav class="container p-4 d-flex justify-content-between align-items-center">
+    <div>
+        <a href="{{ url_for('home') }}" class="NavBar">HOME</a>
+        <a href="{{ url_for('store_front') }}" class="NavBar ms-3">STORE</a>
+        <a href="{{ url_for('updates_feed') }}" class="NavBar ms-3">UPDATES</a>
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('wishlist') }}" class="NavBar ms-3">WISHLIST</a>
+        {% endif %}
+    </div>
+    {% if current_user.is_authenticated %}
+    <div class="comic-auth-box">
+        <span class="comic-username">{{ current_user.username }}</span>
+        <a href="{{ url_for('logout') }}" class="comic-logout-btn">LOGOUT</a>
+    </div>
+    {% else %}
+    <div class="comic-auth-box">
+        <a href="{{ url_for('login') }}" class="comic-logout-btn" style="background:#2196f3;">LOGIN</a>
+        <a href="{{ url_for('register') }}" class="comic-logout-btn" style="background:#ffeb3b; color:#000;">REGISTER</a>
+    </div>
+    {% endif %}
+</nav>
+
+<div class="container py-4">
+    <h1 class="text-white mb-4">GAME UPDATES</h1>
+
+    <div class="d-flex gap-3 mb-5 flex-wrap">
+        <a href="{{ url_for('updates_feed', tab='owned') }}" class="updates-tab-btn {% if tab == 'owned' %}active{% endif %}">MY GAMES</a>
+        <a href="{{ url_for('updates_feed', tab='friends') }}" class="updates-tab-btn {% if tab == 'friends' %}active{% endif %}">FRIENDS</a>
+        <a href="{{ url_for('updates_feed', tab='all') }}" class="updates-tab-btn {% if tab == 'all' %}active{% endif %}">ALL</a>
+    </div>
+
+    {% for update in updates %}
+    <div class="comic-card mb-5" data-update-id="{{ update.id }}">
+        <div class="halftone-corner"></div>
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <a href="{{ url_for('game_detail', game_id=update.game_id) }}" class="reviewer-name update-game-link">
+                    {{ update.game.title }} &mdash; {{ update.version_label or "Update" }}
+                </a>
+                <div class="d-flex align-items-center gap-2">
+                    <small class="text-white-50">{{ update.created_at.strftime('%d.%m.%Y %H:%M') }}</small>
+                    <button class="wishlist-btn follow-game-btn {% if update.game_id in following_ids %}active{% endif %}"
+                            data-game-id="{{ update.game_id }}"
+                            title="Follow this game"
+                            style="width:34px;height:34px;font-size:1rem;">
+                        <i class="bi {% if update.game_id in following_ids %}bi-bell-fill{% else %}bi-bell{% endif %}"></i>
+                    </button>
+                </div>
+            </div>
+
+            {% if update.patch_notes %}
+            <p class="review-font">{{ update.patch_notes }}</p>
+            {% endif %}
+
+            <div class="d-flex gap-3 mt-3 align-items-center flex-wrap">
+                <span class="view-count-badge update-view-count" data-update-id="{{ update.id }}">{{ update.view_count }} Views</span>
+
+                <button class="btn btn-sm btn-outline-light update-vote-btn {% if my_votes.get(update.id) == 'up' %}active{% endif %}"
+                        data-update-id="{{ update.id }}" data-vote-type="up">
+                    <i class="bi bi-hand-thumbs-up-fill"></i> <span class="up-count">{{ update.upvotes }}</span>
+                </button>
+                <button class="btn btn-sm btn-outline-light update-vote-btn {% if my_votes.get(update.id) == 'down' %}active{% endif %}"
+                        data-update-id="{{ update.id }}" data-vote-type="down">
+                    <i class="bi bi-hand-thumbs-down-fill"></i> <span class="down-count">{{ update.downvotes }}</span>
+                </button>
+
+                <a href="{{ url_for('game_detail', game_id=update.game_id) }}#update-{{ update.id }}" class="text-white-50 text-decoration-none">
+                    <i class="bi bi-chat-fill"></i> {{ update.comments|length }} Comments
+                </a>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <p class="comic-auth-box d-inline-block fs-4 msg-yellow">
+        {% if tab == 'owned' %}
+        You don't own any games yet.
+        {% elif tab == 'friends' %}
+        Your friends don't own any games yet.
+        {% else %}
+        There are no updates for now.
+        {% endif %}
+    </p>
+    {% endfor %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='JS/script.js') }}"></script>
+</body>
+</html>
