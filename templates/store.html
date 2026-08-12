@@ -138,6 +138,7 @@
             {% if current_user.is_authenticated %}
             <li><a class="dropdown-item comic-dropdown-item" href="{{ url_for('profile', username=current_user.username) }}"><i class="bi bi-person-circle"></i> My profile</a></li>
             <li><a class="dropdown-item comic-dropdown-item" href="{{ url_for('wishlist') }}"><i class="bi bi-heart-fill"></i> My Wishlist</a></li>
+            <li><a class="dropdown-item comic-dropdown-item" href="{{ url_for('updates_feed') }}"><i class="bi bi-bell-fill"></i> Game Updates</a></li>
             {% endif %}
             <li><a class="dropdown-item comic-dropdown-item" href="{{ url_for('library') }}"><i class="bi bi-collection-play-fill"></i> Library</a></li>
             {% if current_user.is_authenticated and current_user.role == 'dev' %}
@@ -156,6 +157,9 @@
         <div class="navbarContent d-flex justify-content-center align-items-center flex-wrap gap-3 m-0 w-100">
             <a class="NavBar" href="/">Home</a>
             <a class="NavBar" href="/store">Store</a>
+            {% if current_user.is_authenticated %}
+            <a class="NavBar" href="{{ url_for('updates_feed') }}">UPDATES</a>
+            {% endif %}
             <a class="NavBar" href="/community">COMMUNITY</a>
             <a class="NavBar" href="/settings">HELP</a>
         </div>
