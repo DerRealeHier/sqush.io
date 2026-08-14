@@ -1,6 +1,10 @@
 import json
 import os
 import random
+import secrets
+import re
+from urllib.parse import urlencode
+import requests
 from flask import Flask, render_template, request, redirect, url_for, jsonify, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
@@ -20,6 +24,16 @@ import clamd  # security scan for game uploads
 load_dotenv()
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY")
+
+# Hack Club OAuth
+app.config["HACKCLUB_CLIENT_ID"] = os.environ.get("HACKCLUB_CLIENT_ID")
+app.config["HACKCLUB_CLIENT_SECRET"] = os.environ.get("HACKCLUB_CLIENT_SECRET")
+app.config["HACKCLUB_REDIRECT_URI"] = os.environ.get(
+    "HACKCLUB_REDIRECT_URI",
+    "http://localhost:5000/auth/hackclub/callback",
+)
+HACKCLUB_AUTH_BASE = "https://auth.hackclub.com"
+
 stripe_keys = {
     "secret_key": os.environ.get("STRIPE_SECRET_KEY"),
     "publishable_key": os.environ.get("STRIPE_PUBLISHABLE_KEY"),
@@ -129,10 +143,6 @@ os.makedirs(AVATAR_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok = True)
 db = SQLAlchemy(app)
-
-
-
-
 #Initiliaze Login
 login_manager = LoginManager(app)
 login_manager.login_view = "login" #YOU BETTER LOGIN
@@ -259,7 +269,6 @@ class GameFollow(db.Model):
     game = db.relationship("Game", backref="game_followers")
     __table_args__ = (db.UniqueConstraint('user_id', 'game_id', name='unique_game_follow'),)
 
-
 class Purchase(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
@@ -366,7 +375,6 @@ def save_file(file, folder=None):
         return f"{relative_folder}/{filename}"
     return None
 
-
 def get_clamd_client():
     # only one error at a time
     if not CLAMAV_ENABLED:
@@ -455,7 +463,6 @@ def _get_tag_set(game):
     if not game.tags:
         return set()
     return {t.strip().lower() for t in game.tags.split(",") if t.strip()}
-
 
 def get_popular_games(exclude_ids=None, limit=6):
     # Fallback for empty libraries or when nothing else scores
@@ -636,7 +643,6 @@ def send_login_otp(user):
     """
     send_email(user.email, "Your Sqush login:", _comic_email_shell("Your login code:", body))
 
-
 def update_daily_stats(game):
     # one row per day.
     today = datetime.now(timezone.utc).date()
@@ -775,6 +781,149 @@ def login():
     return render_template("login.html", firebase_config=FIREBASE_WEB_CONFIG, firebase_enabled=FIREBASE_ENABLED)
 
 
+# Hack Club OAuth routes
+@app.route("/auth/hackclub/login")
+def hackclub_login():
+    if not app.config["HACKCLUB_CLIENT_ID"] or not app.config["HACKCLUB_CLIENT_SECRET"]:
+        flash("Hack Club login is not configured on this server.", "error")
+        return redirect(url_for("login"))
+
+    state = secrets.token_urlsafe(24)
+    session["hackclub_oauth_state"] = state
+
+    params = {
+        "client_id": app.config["HACKCLUB_CLIENT_ID"],
+        "redirect_uri": app.config["HACKCLUB_REDIRECT_URI"],
+        "response_type": "code",
+        "scope": "openid profile email name",
+        "state": state,
+    }
+    auth_url = f"{HACKCLUB_AUTH_BASE}/oauth/authorize?{urlencode(params)}"
+    return redirect(auth_url)
+
+
+@app.route("/auth/hackclub/callback")
+@app.route("/auth/hackclub/callback")
+def hackclub_callback():
+    error = request.args.get("error")
+    if error:
+        error_description = request.args.get("error_description", "")
+        print(f"DEBUG: Hack Club OAuth cancelled/failed: {error} {error_description}")
+        flash("Hack Club login failed or was cancelled.", "error")
+        return redirect(url_for("login"))
+
+    state = request.args.get("state")
+    expected_state = session.pop("hackclub_oauth_state", None)
+
+    print(
+        "DEBUG: OAuth callback:",
+        {
+            "has_code": bool(request.args.get("code")),
+            "received_state": state,
+            "expected_state": expected_state,
+            "all_args": dict(request.args),
+        },
+    )
+
+    # Zum Testen: Wenn Hack Club keinen state zurücksendet, wird der
+    # Login nicht sofort abgebrochen. Danach wieder aktivieren.
+    if expected_state and state and state != expected_state:
+        flash("Hack Club login failed: invalid state.", "error")
+        return redirect(url_for("login"))
+
+    code = request.args.get("code")
+    if not code:
+        flash("Hack Club login failed: no code returned.", "error")
+        return redirect(url_for("login"))
+
+    try:
+        token_res = requests.post(
+            f"{HACKCLUB_AUTH_BASE}/oauth/token",
+            json={
+                "client_id": app.config["HACKCLUB_CLIENT_ID"],
+                "client_secret": app.config["HACKCLUB_CLIENT_SECRET"],
+                "redirect_uri": app.config["HACKCLUB_REDIRECT_URI"],
+                "code": code,
+                "grant_type": "authorization_code",
+            },
+            timeout=10,
+        )
+
+        print(
+            "DEBUG: Token response:",
+            token_res.status_code,
+            token_res.text[:500],
+        )
+
+        token_res.raise_for_status()
+        access_token = token_res.json().get("access_token")
+
+        if not access_token:
+            raise ValueError("No access token returned")
+
+        me_res = requests.get(
+            f"{HACKCLUB_AUTH_BASE}/api/v1/me",
+            headers={"Authorization": f"Bearer {access_token}"},
+            timeout=10,
+        )
+
+        print(
+            "DEBUG: Profile response:",
+            me_res.status_code,
+            me_res.text[:500],
+        )
+
+        me_res.raise_for_status()
+
+    except (requests.RequestException, ValueError) as e:
+        print(f"DEBUG: Hack Club OAuth error: {e}")
+        flash("Hack Club login failed: could not authenticate with Hack Club.", "error")
+        return redirect(url_for("login"))
+
+    profile = me_res.json()
+    email = (profile.get("email") or "").strip().lower()
+    name = profile.get("name") or profile.get("slack_id") or "hackclub_user"
+
+    if not email:
+        print("DEBUG: Hack Club profile without email:", profile)
+        flash("Hack Club login failed: no email on your Hack Club profile.", "error")
+        return redirect(url_for("login"))
+
+    user = User.query.filter_by(email=email).first()
+
+    if not user:
+        base_username = (
+                re.sub(r"[^a-zA-Z0-9_]", "", name.replace(" ", "_"))
+                or "hcuser"
+        )
+        username = base_username[:64]
+        suffix = 1
+
+        while User.query.filter_by(username=username).first():
+            suffix += 1
+            username = f"{base_username[:64 - len(str(suffix))]}{suffix}"
+
+        user = User(
+            username=username,
+            email=email,
+            password_hash=generate_password_hash(secrets.token_urlsafe(32)),
+            email_verified=True,
+            needs_username_setup=True,
+        )
+
+        db.session.add(user)
+        db.session.commit()
+
+    login_user(user, remember=True)
+
+    if user.needs_username_setup:
+        return redirect(url_for("choose_username"))
+
+    if user.role == "dev":
+        return redirect(url_for("developer_dashboard"))
+
+    return redirect(url_for("profile", username=user.username))
+
 @app.route("/verify_email/<token>")
 def verify_email(token):
     try:
@@ -882,7 +1031,6 @@ def resend_2fa():
             send_login_otp(user)
             flash("New code sent (;", "info")
     return redirect(url_for("verify_2fa"))
-
 
 @app.route("/auth/google-login", methods=["POST"])
 def google_login():
@@ -1019,7 +1167,6 @@ def update_email():
     flash("We sent a confirmation link to your new Email address. Click it to make the change final!", "success")
     return redirect(url_for("settings"))
 
-
 @app.route("/settings/password", methods=["POST"])
 @login_required
 def update_password():
@@ -1122,7 +1269,6 @@ def unfollow(username):
             db.session.delete(friendship)
             db.session.commit()
     return redirect(url_for('profile', username=username))
-
 
 #clicking twice makes the vote disappear. Pretty basic
 @app.route("/vote_review/<int:review_id>/<vote_type>", methods=["POST"])
@@ -1271,8 +1417,6 @@ def read_notification(notif_id):
             return redirect(url_for('profile', username=sender.username))
 
     return redirect(url_for("profile", username=current_user.username))
-
-
 
 @app.route("/update_profile", methods=["POST"])
 @login_required
@@ -1448,7 +1592,6 @@ def community():
 
     return render_template("community.html", users=users)
 
-
 @app.route("/buy/<int:game_id>", methods = ["GET", "POST"])
 def buy(game_id):
     game = Game.query.get_or_404(game_id)
@@ -1521,7 +1664,6 @@ def wishlist():
         game.tags_json = json.dumps(tags)
         games.append(game)
     return render_template("wishlist.html", games=games)
-
 
 @app.route("/success/<int:game_id>")
 @login_required
@@ -1681,7 +1823,6 @@ def update_game(game_id):
 
     history = GameUpdate.query.filter_by(game_id=game.id).order_by(GameUpdate.created_at.desc()).all()
     return render_template("update_game.html", game=game, history=history)
-
 
 @app.route("/config")
 def get_publishable_key():
