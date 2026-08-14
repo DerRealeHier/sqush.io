@@ -89,6 +89,19 @@
         }
         .btn-comic-google:hover { background: #f2f2f2; color: #000; transform: translate(2px, 2px); box-shadow: 4px 4px 0px #000; }
 
+        .btn-comic-hackclub {
+            background: var(--red);
+            border: 4px solid #000;
+            color: #fff;
+            font-family: 'Bangers', sans-serif;
+            letter-spacing: 1px;
+            font-size: 1.2rem;
+            border-radius: 0;
+            box-shadow: 6px 6px 0px #000;
+            transition: transform 0.1s ease;
+        }
+        .btn-comic-hackclub:hover { background: #e6291f; color: #fff; transform: translate(2px, 2px); box-shadow: 4px 4px 0px #000; }
+
         .auth-switch-link { color: var(--blue); font-weight: 700; text-decoration: none; }
         .auth-switch-link:hover { color: var(--yellow); }
 
@@ -145,12 +158,21 @@
         <button type="submit" class="btn btn-comic-auth w-100 py-2 mb-3">Login</button>
     </form>
 
-    {% if firebase_enabled %}
+    {% if firebase_enabled or hackclub_enabled %}
     <div class="comic-divider">or</div>
+    {% endif %}
+
+    {% if firebase_enabled %}
     <button id="googleLoginBtn" type="button" class="btn btn-comic-google w-100 py-2 mb-3">
         <i class="bi bi-google me-2"></i>Login with Google
     </button>
     <div id="googleLoginError" class="text-danger text-center fw-bold" style="display:none; font-size:0.85rem;"></div>
+    {% endif %}
+
+    {% if hackclub_enabled %}
+    <a href="{{ url_for('hackclub_login') }}" class="btn btn-comic-hackclub w-100 py-2 mb-3 d-flex align-items-center justify-content-center">
+        <i class="bi bi-slack me-2"></i>Login with Hack Club
+    </a>
     {% endif %}
 
     <div class="text-center">
