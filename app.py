@@ -788,52 +788,29 @@ def hackclub_login():
         flash("Hack Club login is not configured on this server.", "error")
         return redirect(url_for("login"))
 
-    state = secrets.token_urlsafe(24)
-    session["hackclub_oauth_state"] = state
-
     params = {
         "client_id": app.config["HACKCLUB_CLIENT_ID"],
         "redirect_uri": app.config["HACKCLUB_REDIRECT_URI"],
         "response_type": "code",
-        "scope": "openid profile email name",
-        "state": state,
+        "scope": "openid email",
     }
+
     auth_url = f"{HACKCLUB_AUTH_BASE}/oauth/authorize?{urlencode(params)}"
     return redirect(auth_url)
 
 
 @app.route("/auth/hackclub/callback")
-@app.route("/auth/hackclub/callback")
 def hackclub_callback():
     error = request.args.get("error")
     if error:
-        error_description = request.args.get("error_description", "")
-        print(f"DEBUG: Hack Club OAuth cancelled/failed: {error} {error_description}")
+        print("DEBUG: Hack Club OAuth error:", error)
         flash("Hack Club login failed or was cancelled.", "error")
-        return redirect(url_for("login"))
-
-    state = request.args.get("state")
-    expected_state = session.pop("hackclub_oauth_state", None)
-
-    print(
-        "DEBUG: OAuth callback:",
-        {
-            "has_code": bool(request.args.get("code")),
-            "received_state": state,
-            "expected_state": expected_state,
-            "all_args": dict(request.args),
-        },
-    )
-
-    # Zum Testen: Wenn Hack Club keinen state zurücksendet, wird der
-    # Login nicht sofort abgebrochen. Danach wieder aktivieren.
-    if expected_state and state and state != expected_state:
-        flash("Hack Club login failed: invalid state.", "error")
         return redirect(url_for("login"))
 
     code = request.args.get("code")
     if not code:
-        flash("Hack Club login failed: no code returned.", "error")
+        print("DEBUG: No OAuth code returned:", dict(request.args))
+        flash("Hack Club login failed: no authorization code returned.", "error")
         return redirect(url_for("login"))
 
     try:
@@ -848,16 +825,9 @@ def hackclub_callback():
             },
             timeout=10,
         )
-
-        print(
-            "DEBUG: Token response:",
-            token_res.status_code,
-            token_res.text[:500],
-        )
-
         token_res.raise_for_status()
-        access_token = token_res.json().get("access_token")
 
+        access_token = token_res.json().get("access_token")
         if not access_token:
             raise ValueError("No access token returned")
 
@@ -866,13 +836,6 @@ def hackclub_callback():
             headers={"Authorization": f"Bearer {access_token}"},
             timeout=10,
         )
-
-        print(
-            "DEBUG: Profile response:",
-            me_res.status_code,
-            me_res.text[:500],
-        )
-
         me_res.raise_for_status()
 
     except (requests.RequestException, ValueError) as e:
@@ -881,21 +844,19 @@ def hackclub_callback():
         return redirect(url_for("login"))
 
     profile = me_res.json()
-    email = (profile.get("email") or "").strip().lower()
-    name = profile.get("name") or profile.get("slack_id") or "hackclub_user"
+    identity = profile.get("identity") or {}
+    email = (identity.get("primary_email") or "").strip().lower()
 
     if not email:
-        print("DEBUG: Hack Club profile without email:", profile)
-        flash("Hack Club login failed: no email on your Hack Club profile.", "error")
+        print("DEBUG: Hack Club profile without primary_email:", profile)
+        flash("Hack Club login failed: no email address was returned.", "error")
         return redirect(url_for("login"))
 
     user = User.query.filter_by(email=email).first()
 
     if not user:
-        base_username = (
-                re.sub(r"[^a-zA-Z0-9_]", "", name.replace(" ", "_"))
-                or "hcuser"
-        )
+        username_source = email.split("@", 1)[0]
+        base_username = re.sub(r"[^a-zA-Z0-9_]", "", username_source) or "hackclub_user"
         username = base_username[:64]
         suffix = 1
 
@@ -910,7 +871,6 @@ def hackclub_callback():
             email_verified=True,
             needs_username_setup=True,
         )
-
         db.session.add(user)
         db.session.commit()
 
@@ -923,25 +883,6 @@ def hackclub_callback():
         return redirect(url_for("developer_dashboard"))
 
     return redirect(url_for("profile", username=user.username))
-
-@app.route("/verify_email/<token>")
-def verify_email(token):
-    try:
-        email = email_serializer.loads(token, salt="email-verify", max_age=60 * 60 * 24)  # 24h
-    except SignatureExpired:
-        flash("The confirmation link expired. Request a new one below", "error")
-        return redirect(url_for("login"))
-    except BadSignature:
-        flash("Wrong confirmation link", "error")
-        return redirect(url_for("login"))
-
-    user = User.query.filter_by(email=email).first()
-    if user:
-        user.email_verified = True
-        db.session.commit()
-        flash("Email verified. You can now login!", "success")
-    return redirect(url_for("login"))
-
 
 @app.route("/verify_email_change/<token>")
 @login_required
