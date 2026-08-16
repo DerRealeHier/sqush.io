@@ -169,6 +169,8 @@ class User(UserMixin, db.Model):
     comments_enabled = db.Column(db.Boolean, default=True)# profile owner can turn comments off completely
     email_verified = db.Column(db.Boolean, default=False)# has to click the link in the mail first
     firebase_uid = db.Column(db.String(128), nullable=True, unique=True)# set once they log in with Google
+    hackclub_id = db.Column(db.String(128), nullable=True, unique=True)# set once they link/login with Hack Club
+    has_password = db.Column(db.Boolean, default=True)# False for accounts that only ever used Google/Hack Club (random placeholder password)
     two_fa_enabled = db.Column(db.Boolean, default=True)# user can turn the login-code mail off on the settings page
     needs_username_setup = db.Column(db.Boolean, default=False)# True right after a fresh Google signup, until they pick their own name
     followed = db.relationship("User", secondary=Friendship.__table__,
@@ -445,6 +447,15 @@ def calculate_game_revenue(game):
     for p in game.purchases:
         total += p.price_paid if p.price_paid is not None else calculate_display_price(game)
     return total
+
+def connected_login_methods_count(user):
+    # used to stop someone from unlinking their LAST way of getting into the account
+    return sum([
+        1 if user.has_password else 0,
+        1 if user.firebase_uid else 0,
+        1 if user.hackclub_id else 0,
+    ])
+
 
 def calculate_display_price(game):
     #I had this in like all functions. Now I have an own one for it.
@@ -735,7 +746,7 @@ def register():
             flash("Username or Email exists! Be faster next time xD", "error")
             return redirect(url_for("register"))
 
-        new_user = User(username=username, email=email, role=role)
+        new_user = User(username=username, email=email, role=role, has_password=True)
         new_user.set_password(password)
         new_user.email_verified = not require_email_confirmation
         db.session.add(new_user)
@@ -774,7 +785,7 @@ def login():
                 return redirect(url_for("developer_dashboard"))
             return redirect(url_for("profile", username=user.username))
 
-        # password is correct, mail is verified then the 2FA gate.
+        # password is correct, mail is verified -> now the 2FA gate.
         # login_user() only happens AFTER the code from verify_2fa() checks out.
         send_login_otp(user)
         session["pending_2fa_user_id"] = user.id
@@ -806,19 +817,51 @@ def hackclub_login():
     return redirect(auth_url)
 
 
+# Same OAuth dance as hackclub_login, but started from a logged-in session (Settings page)
+# so the callback knows to LINK the account instead of logging someone in/registering.
+@app.route("/settings/link/hackclub")
+@login_required
+def link_hackclub():
+    if not app.config["HACKCLUB_CLIENT_ID"] or not app.config["HACKCLUB_CLIENT_SECRET"]:
+        flash("Hack Club login is not configured on this server.", "error")
+        return redirect(url_for("settings"))
+
+    if current_user.hackclub_id:
+        flash("Your account is already linked with Hack Club.", "info")
+        return redirect(url_for("settings"))
+
+    session["hackclub_link_user_id"] = current_user.id
+
+    params = {
+        "client_id": app.config["HACKCLUB_CLIENT_ID"],
+        "redirect_uri": app.config["HACKCLUB_REDIRECT_URI"],
+        "response_type": "code",
+        "scope": "openid email",
+    }
+
+    auth_url = f"{HACKCLUB_AUTH_BASE}/oauth/authorize?{urlencode(params)}"
+    return redirect(auth_url)
+
+
 @app.route("/auth/hackclub/callback")
 def hackclub_callback():
+    # if this was started from /settings/link/hackclub, we're linking to an existing
+    # account instead of logging in / registering a new one. Pop it once at the top so
+    # every early-return below (error cases) also lands back on the right page.
+    link_user_id = session.pop("hackclub_link_user_id", None)
+    fail_redirect = url_for("settings") if link_user_id else url_for("login")
+
     error = request.args.get("error")
     if error:
         print("DEBUG: Hack Club OAuth error:", error)
         flash("Hack Club login failed or was cancelled.", "error")
-        return redirect(url_for("login"))
+        return redirect(fail_redirect)
 
     code = request.args.get("code")
     if not code:
         print("DEBUG: No OAuth code returned:", dict(request.args))
         flash("Hack Club login failed: no authorization code returned.", "error")
-        return redirect(url_for("login"))
+        return redirect(fail_redirect)
 
     try:
         token_res = requests.post(
@@ -848,17 +891,41 @@ def hackclub_callback():
     except (requests.RequestException, ValueError) as e:
         print(f"DEBUG: Hack Club OAuth error: {e}")
         flash("Hack Club login failed: could not authenticate with Hack Club.", "error")
-        return redirect(url_for("login"))
+        return redirect(fail_redirect)
 
     profile = me_res.json()
     identity = profile.get("identity") or {}
     email = (identity.get("primary_email") or "").strip().lower()
+    # not 100% sure "id" is the field name here since I can't check the live API response,
+    # so this is defensive - falls back to None and we just skip storing a hard identity link.
+    hackclub_id = str(identity.get("id") or profile.get("id") or "").strip() or None
 
     if not email:
         print("DEBUG: Hack Club profile without primary_email:", profile)
         flash("Hack Club login failed: no email address was returned.", "error")
-        return redirect(url_for("login"))
+        return redirect(fail_redirect)
 
+    # ---- LINK MODE: attach this Hack Club identity to the CURRENTLY LOGGED IN account ----
+    if link_user_id:
+        target_user = db.session.get(User, link_user_id)
+        if not target_user:
+            flash("Your session expired, please try linking again.", "error")
+            return redirect(url_for("login"))
+
+        if hackclub_id:
+            existing_owner = User.query.filter(
+                User.hackclub_id == hackclub_id, User.id != target_user.id
+            ).first()
+            if existing_owner:
+                flash("That Hack Club account is already linked to a different Sqush account.", "error")
+                return redirect(url_for("settings"))
+
+        target_user.hackclub_id = hackclub_id
+        db.session.commit()
+        flash("Hack Club account linked!", "success")
+        return redirect(url_for("settings"))
+
+    # ---- NORMAL MODE: log in to the matching account, or register a brand new one ----
     user = User.query.filter_by(email=email).first()
 
     if not user:
@@ -877,8 +944,14 @@ def hackclub_callback():
             password_hash=generate_password_hash(secrets.token_urlsafe(32)),
             email_verified=True,
             needs_username_setup=True,
+            has_password=False,
+            hackclub_id=hackclub_id,
         )
         db.session.add(user)
+        db.session.commit()
+    elif hackclub_id and not user.hackclub_id:
+        # existing account, first time coming in through Hack Club -> remember the link
+        user.hackclub_id = hackclub_id
         db.session.commit()
 
     login_user(user, remember=True)
@@ -986,7 +1059,10 @@ def google_login():
     if not FIREBASE_ENABLED:
         return jsonify({"error": "Google Login is not configured on this server"}), 503
 
-    id_token = (request.get_json(silent=True) or {}).get("idToken")
+    payload = request.get_json(silent=True) or {}
+    id_token = payload.get("idToken")
+    link_mode = payload.get("mode") == "link"
+
     if not id_token:
         return jsonify({"error": "Missing idToken"}), 400
 
@@ -1003,6 +1079,22 @@ def google_login():
     if not email:
         return jsonify({"error": "Google account has no email"}), 400
 
+    # ---- LINK MODE: attach this Google identity to the CURRENTLY LOGGED IN account ----
+    if link_mode:
+        if not current_user.is_authenticated:
+            return jsonify({"error": "You need to be logged in to link an account"}), 401
+
+        existing_owner = User.query.filter(
+            User.firebase_uid == uid, User.id != current_user.id
+        ).first()
+        if existing_owner:
+            return jsonify({"error": "That Google account is already linked to a different Sqush account"}), 409
+
+        current_user.firebase_uid = uid
+        db.session.commit()
+        return jsonify({"status": "ok", "redirect": url_for("settings")})
+
+    # ---- NORMAL MODE: log in to the matching account, or register a brand new one ----
     user = User.query.filter_by(firebase_uid=uid).first()
     if not user:
         user = User.query.filter_by(email=email).first()
@@ -1018,7 +1110,8 @@ def google_login():
 
         user = User(username=username, email=email, role="user",
                     email_verified=True, firebase_uid=uid,
-                    needs_username_setup=True)  # let them pick their own name on first login
+                    needs_username_setup=True,  # let them pick their own name on first login
+                    has_password=False)
         # nobody logs in with this password
         user.set_password(os.urandom(16).hex())
         db.session.add(user)
@@ -1070,7 +1163,12 @@ def choose_username():
 @app.route("/settings")
 @login_required
 def settings():
-    return render_template("settings.html")
+    return render_template(
+        "settings.html",
+        firebase_config=FIREBASE_WEB_CONFIG,
+        firebase_enabled=FIREBASE_ENABLED,
+        hackclub_enabled=HACKCLUB_ENABLED,
+    )
 
 
 @app.route("/settings/username", methods=["POST"])
@@ -1149,6 +1247,64 @@ def toggle_2fa():
         flash("2FA is now enabled. You'll get a login code by mail from now on.", "success")
     else:
         flash("2FA is now disabled. Careful out there (:", "info")
+    return redirect(url_for("settings"))
+
+
+@app.route("/settings/set-password", methods=["POST"])
+@login_required
+def set_password():
+    # for accounts that signed up through Google/Hack Club and never had a real password
+    if current_user.has_password:
+        flash("You already have a password set. Use the change password form instead.", "error")
+        return redirect(url_for("settings"))
+
+    new_password = request.form.get("new_password", "")
+    new_password_repeat = request.form.get("new_password_repeat", "")
+
+    if len(new_password) < 8:
+        flash("Your new password needs at least 8 characters", "error")
+        return redirect(url_for("settings"))
+
+    if new_password != new_password_repeat:
+        flash("The new passwords don't match", "error")
+        return redirect(url_for("settings"))
+
+    current_user.set_password(new_password)
+    current_user.has_password = True
+    db.session.commit()
+    flash("Password set! You can now log in with your username and password too.", "success")
+    return redirect(url_for("settings"))
+
+
+@app.route("/settings/unlink/google", methods=["POST"])
+@login_required
+def unlink_google():
+    if not current_user.firebase_uid:
+        return redirect(url_for("settings"))
+
+    if connected_login_methods_count(current_user) <= 1:
+        flash("Can't unlink your last login method. Set a password or link another account first.", "error")
+        return redirect(url_for("settings"))
+
+    current_user.firebase_uid = None
+    db.session.commit()
+    flash("Google account unlinked.", "info")
+    return redirect(url_for("settings"))
+
+
+@app.route("/settings/unlink/hackclub", methods=["POST"])
+@login_required
+def unlink_hackclub():
+    if not current_user.hackclub_id:
+        return redirect(url_for("settings"))
+
+    if connected_login_methods_count(current_user) <= 1:
+        flash("Can't unlink your last login method. Set a password or link another account first.", "error")
+        return redirect(url_for("settings"))
+
+    current_user.hackclub_id = None
+    db.session.commit()
+    flash("Hack Club account unlinked.", "info")
     return redirect(url_for("settings"))
 
 
