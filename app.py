@@ -33,6 +33,8 @@ app.config["HACKCLUB_REDIRECT_URI"] = os.environ.get(
     "http://localhost:5000/auth/hackclub/callback",
 )
 HACKCLUB_AUTH_BASE = "https://auth.hackclub.com"
+# used everywhere we need to know if the button/route should even be active
+HACKCLUB_ENABLED = bool(app.config["HACKCLUB_CLIENT_ID"] and app.config["HACKCLUB_CLIENT_SECRET"])
 
 stripe_keys = {
     "secret_key": os.environ.get("STRIPE_SECRET_KEY"),
@@ -772,13 +774,18 @@ def login():
                 return redirect(url_for("developer_dashboard"))
             return redirect(url_for("profile", username=user.username))
 
-        # password is correct, mail is verified -> now the 2FA gate.
+        # password is correct, mail is verified then the 2FA gate.
         # login_user() only happens AFTER the code from verify_2fa() checks out.
         send_login_otp(user)
         session["pending_2fa_user_id"] = user.id
         return redirect(url_for("verify_2fa"))
 
-    return render_template("login.html", firebase_config=FIREBASE_WEB_CONFIG, firebase_enabled=FIREBASE_ENABLED)
+    return render_template(
+        "login.html",
+        firebase_config=FIREBASE_WEB_CONFIG,
+        firebase_enabled=FIREBASE_ENABLED,
+        hackclub_enabled=HACKCLUB_ENABLED,
+    )
 
 
 # Hack Club OAuth routes
