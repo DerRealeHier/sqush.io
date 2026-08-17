@@ -19,11 +19,21 @@ from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 import firebase_admin
 from firebase_admin import credentials as firebase_credentials, auth as firebase_auth
 import clamd  # security scan for game uploads
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 # Stripe API Keys.
 load_dotenv()
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY")
+
+
+limiter = Limiter(
+    key_func=get_remote_address,
+    app=app,
+    storage_uri=os.environ.get("RATELIMIT_STORAGE_URI", "memory://"),
+    default_limits=[],  # no blanket limit, we set limits per oute below
+)
 
 # Hack Club OAuth
 app.config["HACKCLUB_CLIENT_ID"] = os.environ.get("HACKCLUB_CLIENT_ID")
@@ -366,6 +376,13 @@ def load_user(user_id):
 with app.app_context():
     print("DEBUG: Prüfe Notification Table Spalten")
     db.create_all()
+
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    # e.description holds flask limiters "X per Y" text
+    flash(f"Too many attempts, slow down (: Try again in a bit. ({e.description})", "error")
+    return redirect(request.referrer or url_for("home")), 429
+
 
 #our lovely routes xD
 
@@ -733,6 +750,7 @@ def accept_request(request_id):
 
 #authentication routes.
 @app.route("/register", methods = ["GET", "POST"])
+@limiter.limit("10/hour", methods=["POST"])
 def register():
     if request.method == "POST":
         username = request.form["username"]
@@ -763,6 +781,7 @@ def register():
 
 #Lets Lock in
 @app.route("/login", methods = ["GET", "POST"])
+@limiter.limit("10/minute", methods=["POST"])
 def login():
     if request.method == "POST":
         username = request.form["username"]
@@ -844,6 +863,7 @@ def link_hackclub():
 
 
 @app.route("/auth/hackclub/callback")
+@limiter.limit("15/minute")
 def hackclub_callback():
     # if this was started from /settings/link/hackclub, we're linking to an existing
     # account instead of logging in / registering a new one. Pop it once at the top so
@@ -997,6 +1017,7 @@ def verify_email_change(token):
 
 
 @app.route("/resend_verification", methods=["POST"])
+@limiter.limit("5/hour")
 def resend_verification():
     email = request.form.get("email") or session.get("pending_verification_email")
     user = User.query.filter_by(email=email).first() if email else None
@@ -1008,6 +1029,7 @@ def resend_verification():
 
 
 @app.route("/login/verify-2fa", methods=["GET", "POST"])
+@limiter.limit("8/minute", methods=["POST"])
 def verify_2fa():
     user_id = session.get("pending_2fa_user_id")
     if not user_id:
@@ -1044,6 +1066,7 @@ def verify_2fa():
 
 
 @app.route("/login/resend-2fa", methods=["POST"])
+@limiter.limit("5/hour")
 def resend_2fa():
     user_id = session.get("pending_2fa_user_id")
     if user_id:
@@ -1054,6 +1077,7 @@ def resend_2fa():
     return redirect(url_for("verify_2fa"))
 
 @app.route("/auth/google-login", methods=["POST"])
+@limiter.limit("15/minute")
 def google_login():
     # called via fetch
     if not FIREBASE_ENABLED:
@@ -1215,6 +1239,7 @@ def update_email():
 
 @app.route("/settings/password", methods=["POST"])
 @login_required
+@limiter.limit("10/hour")
 def update_password():
     current_password = request.form.get("current_password", "")
     new_password = request.form.get("new_password", "")
