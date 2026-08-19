@@ -1743,21 +1743,40 @@ def home():
 @app.route("/library")
 @login_required
 def library():
-    # Refunded purchases stay in the database for payment history,
-    # but they no longer grant library access. Dont buy the same game twice man
     purchases = Purchase.query.filter_by(
         user_id=current_user.id,
         refunded=False
-    ).all()
+    ).order_by(Purchase.purchased_at.desc()).all()
 
-    game_ids = [p.game_id for p in purchases]
+    now = datetime.now(timezone.utc)
 
-    if game_ids:
-        owned_games = Game.query.filter(Game.id.in_(game_ids)).all()
-    else:
-        owned_games = []
+    library_games = []
 
-    return render_template("library.html", games=owned_games)
+    for purchase in purchases:
+        purchased_at = purchase.purchased_at
+
+        # SQLite may return naive datetimes. Like get better manners.
+        if purchased_at.tzinfo is None:
+            purchased_at = purchased_at.replace(tzinfo=timezone.utc)
+
+        age = now - purchased_at
+
+        # Refund is available for less than 14 days. You aint gonna get more time than that.
+        refund_available = age < timedelta(days=14)
+
+        days_remaining = max(0, 14 - age.days)
+
+        library_games.append({
+            "game": purchase.game,
+            "purchase": purchase,
+            "refund_available": refund_available,
+            "days_remaining": days_remaining
+        })
+
+    return render_template(
+        "library.html",
+        library_games=library_games
+    )
 
 @app.route("/community", methods=["GET","POST"])
 def community():
@@ -1869,6 +1888,135 @@ def wishlist():
         games.append(game)
     return render_template("wishlist.html", games=games)
 
+def fulfill_checkout(checkout_session_id):
+    """Create the local Purchase only after Stripe confirms payment."""
+    stripe.api_key = stripe_keys["secret_key"]
+
+    checkout_session = stripe.checkout.Session.retrieve(checkout_session_id)
+
+    if checkout_session.payment_status != "paid":
+        print(
+            f"DEBUG: Checkout {checkout_session.id} is not paid yet "
+            f"(status={checkout_session.payment_status})"
+        )
+        return False
+
+    metadata = checkout_session.metadata or {}
+
+    try:
+        user_id = int(metadata["user_id"])
+        game_id = int(metadata["game_id"])
+    except (KeyError, TypeError, ValueError):
+        print(f"DEBUG: Invalid Stripe metadata in checkout {checkout_session.id}")
+        return False
+
+    # Webhooks can be delivered more than once. Do not create duplicate purchases. please
+    existing_purchase = Purchase.query.filter_by(
+        stripe_checkout_session_id=checkout_session.id
+    ).first()
+
+    if existing_purchase:
+        return True
+
+    game = db.session.get(Game, game_id)
+    user = db.session.get(User, user_id)
+
+    if not game or not user:
+        print(
+            f"DEBUG: Cannot fulfill checkout {checkout_session.id}: "
+            f"user={user_id}, game={game_id}"
+        )
+        return False
+
+    # a user should not own the same game twice. (Like DONT GIVE ME ALL YOUR MONEY, give me your entire house instead)
+    existing_purchase = Purchase.query.filter_by(
+        user_id=user_id,
+        game_id=game_id
+    ).first()
+
+    if existing_purchase and not existing_purchase.refunded:
+        if not existing_purchase.stripe_checkout_session_id:
+            existing_purchase.stripe_checkout_session_id = checkout_session.id
+        if not existing_purchase.stripe_payment_intent_id:
+            existing_purchase.stripe_payment_intent_id = checkout_session.payment_intent
+        db.session.commit()
+        return True
+
+    purchase = Purchase(
+        user_id=user_id,
+        game_id=game_id,
+        price_paid=calculate_display_price(game),
+        stripe_checkout_session_id=checkout_session.id,
+        stripe_payment_intent_id=checkout_session.payment_intent,
+        refunded=False,
+    )
+
+    db.session.add(purchase)
+    db.session.commit()
+    update_daily_stats(game)
+
+    print(
+        f"DEBUG: Purchase {purchase.id} fulfilled for user {user_id}, "
+        f"game {game_id}"
+    )
+    return True
+
+
+@app.route("/stripe/webhook", methods=["POST"])
+def stripe_webhook():
+    """Stripe webhook endpoint used as the source of truth for payments."""
+    if not STRIPE_WEBHOOK_SECRET:
+        print("DEBUG: STRIPE_WEBHOOK_SECRET is missing")
+        return jsonify(error="Stripe webhook is not configured"), 500
+
+    payload = request.get_data()
+    signature = request.headers.get("Stripe-Signature")
+
+    if not signature:
+        return jsonify(error="Missing Stripe signature"), 400
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload,
+            signature,
+            STRIPE_WEBHOOK_SECRET
+        )
+    except ValueError:
+        return jsonify(error="Invalid payload"), 400
+    except stripe.error.SignatureVerificationError:
+        return jsonify(error="Invalid Stripe signature"), 400
+
+    try:
+        if event["type"] == "checkout.session.completed":
+            checkout_session = event["data"]["object"]
+            fulfill_checkout(checkout_session["id"])
+
+        elif event["type"] == "checkout.session.async_payment_succeeded":
+            checkout_session = event["data"]["object"]
+            fulfill_checkout(checkout_session["id"])
+
+        elif event["type"] == "checkout.session.async_payment_failed":
+            checkout_session = event["data"]["object"]
+            print(f"DEBUG: Async Stripe payment failed: {checkout_session['id']}")
+
+        elif event["type"] == "refund.created":
+            refund = event["data"]["object"]
+            purchase = Purchase.query.filter_by(
+                stripe_refund_id=refund["id"]
+            ).first()
+
+            if purchase and refund.get("status") in {"succeeded", "pending"}:
+                purchase.refunded = True
+                purchase.refunded_at = datetime.now(timezone.utc)
+                db.session.commit()
+
+    except Exception as e:
+        # Return 500 so Stripe can retry the webhook when something failed.
+        print(f"DEBUG: Stripe webhook processing error: {e}")
+        return jsonify(error="Webhook processing failed"), 500
+
+    return jsonify({"received": True}), 200
+
 
 @app.route("/success/<int:game_id>")
 @login_required
@@ -1877,20 +2025,45 @@ def success(game_id):
 
     session_id = request.args.get("session_id")
 
-    # The webhook is the real source of truth. This page may only verify that
-    # the returned Checkout Session belongs to the logged-in user.
-    if session_id:
-        try:
-            stripe.api_key = stripe_keys["secret_key"]
-            checkout_session = stripe.checkout.Session.retrieve(session_id)
+    if not session_id:
+        flash("Missing Stripe checkout session.", "error")
+        return redirect(url_for("game_detail", game_id=game.id))
 
-            if checkout_session.client_reference_id != str(current_user.id):
-                flash("This payment session does not belong to your account.", "error")
-                return redirect(url_for("game_detail", game_id=game.id))
+    try:
+        stripe.api_key = stripe_keys["secret_key"]
 
-        except stripe.error.StripeError as e:
-            print(f"DEBUG: Could not verify success session: {e}")
-            flash("The payment could not be verified yet. Please check your library shortly.", "error")
+        checkout_session = stripe.checkout.Session.retrieve(session_id)
+
+        # Sicherheitsprüfung:
+        if checkout_session.client_reference_id != str(current_user.id):
+            flash("This payment session does not belong to your account.", "error")
+            return redirect(url_for("game_detail", game_id=game.id))
+
+        # Nur bei tatsächlich bezahlter Session den Kauf übernehmen.
+        if checkout_session.payment_status != "paid":
+            flash("Payment has not been completed yet.", "error")
+            return redirect(url_for("game_detail", game_id=game.id))
+
+        # Fallback für lokale Entwicklung:
+        # Der Webhook kann das später erneut aufrufen,
+        # fulfill_checkout verhindert dabei doppelte Purchases.
+        fulfilled = fulfill_checkout(checkout_session.id)
+
+        if fulfilled:
+            flash("Purchase successful! The game has been added to your library.", "success")
+        else:
+            flash(
+                "Payment was successful, but the purchase could not be added yet.",
+                "error"
+            )
+
+    except stripe.error.StripeError as e:
+        print(f"DEBUG: Could not verify success session: {e}")
+        flash("The payment could not be verified.", "error")
+
+    except Exception as e:
+        print(f"DEBUG: Error fulfilling checkout: {e}")
+        flash("Something went wrong while adding the game to your library.", "error")
 
     return render_template("success.html", game=game)
 
