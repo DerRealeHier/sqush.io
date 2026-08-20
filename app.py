@@ -378,6 +378,138 @@ class ReviewVote(db.Model):
     vote_type = db.Column(db.String(10), nullable=False)  # "helpful" or "funny". SteamLike xD
     __table_args__ = (db.UniqueConstraint('review_id', 'user_id', 'vote_type', name='unique_vote'),)
 
+
+# ---------------------------------------------------------------------------
+# Bundle models
+# ---------------------------------------------------------------------------
+
+class Bundle(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(120), nullable=False)
+    description = db.Column(db.Text)
+    image_path = db.Column(db.String(250))
+    discount_percent = db.Column(db.Integer, default=0, nullable=False)
+    is_published = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+    owner_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+
+    owner = db.relationship(
+        "User",
+        foreign_keys=[owner_id],
+        backref="owned_bundles"
+    )
+
+    @property
+    def original_price(self):
+        return round(sum(x.game.price for x in self.games), 2)
+
+    @property
+    def display_price(self):
+        return round(
+            self.original_price * (1 - self.discount_percent / 100),
+            2
+        )
+
+
+class BundleGame(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    bundle_id = db.Column(
+        db.Integer,
+        db.ForeignKey("bundle.id"),
+        nullable=False
+    )
+    game_id = db.Column(
+        db.Integer,
+        db.ForeignKey("game.id"),
+        nullable=False
+    )
+
+    bundle = db.relationship(
+        "Bundle",
+        backref=db.backref(
+            "games",
+            cascade="all, delete-orphan",
+            lazy=True
+        )
+    )
+    game = db.relationship("Game", backref="bundle_entries")
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "bundle_id",
+            "game_id",
+            name="unique_bundle_game"
+        ),
+    )
+
+
+class BundleCollaborator(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    bundle_id = db.Column(
+        db.Integer,
+        db.ForeignKey("bundle.id"),
+        nullable=False
+    )
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=False
+    )
+    invited_by_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=False
+    )
+    role = db.Column(
+        db.String(20),
+        default="contributor",
+        nullable=False
+    )
+    status = db.Column(
+        db.String(20),
+        default="pending",
+        nullable=False
+    )
+
+    bundle = db.relationship(
+        "Bundle",
+        backref=db.backref(
+            "collaborators",
+            cascade="all, delete-orphan",
+            lazy=True
+        )
+    )
+    user = db.relationship("User", foreign_keys=[user_id])
+    invited_by = db.relationship(
+        "User",
+        foreign_keys=[invited_by_id]
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "bundle_id",
+            "user_id",
+            name="unique_bundle_collaborator"
+        ),
+    )
+
+
+def bundle_role(bundle, user):
+    if bundle.owner_id == user.id:
+        return "owner"
+
+    row = BundleCollaborator.query.filter_by(
+        bundle_id=bundle.id,
+        user_id=user.id,
+        status="accepted"
+    ).first()
+
+    return row.role if row else None
+
 @login_manager.user_loader
 def load_user(user_id):
     # Always had these messages that Query.get is legacy. so I changed it.
@@ -733,6 +865,260 @@ def check_sales_expiry():
 
     if changed:
         db.session.commit()
+
+
+# ---------------------------------------------------------------------------
+# Bundle dashboard routes
+# ---------------------------------------------------------------------------
+
+@app.route("/dashboard/bundles")
+@login_required
+def developer_bundles():
+    if current_user.role != "dev":
+        return "Access Denied", 403
+
+    owned = Bundle.query.filter_by(owner_id=current_user.id).all()
+
+    invited = BundleCollaborator.query.filter_by(
+        user_id=current_user.id,
+        status="pending"
+    ).all()
+
+    collabs = [
+        x.bundle
+        for x in BundleCollaborator.query.filter_by(
+            user_id=current_user.id,
+            status="accepted"
+        ).all()
+    ]
+
+    return render_template(
+        "bundles.html",
+        owned_bundles=owned,
+        pending_invites=invited,
+        collaborating_bundles=collabs
+    )
+
+
+@app.route("/dashboard/bundles/create", methods=["POST"])
+@login_required
+def create_bundle():
+    if current_user.role != "dev":
+        return "Access Denied", 403
+
+    title = request.form.get("title", "").strip()
+    discount = request.form.get("discount_percent", type=int)
+
+    if not title or discount is None or not 0 <= discount <= 95:
+        flash("Bitte prüfe Titel und Rabatt (0-95%).", "error")
+        return redirect(url_for("developer_bundles"))
+
+    image = request.files.get("image")
+
+    if image and image.filename and not allowed_file(image.filename):
+        flash("Nur Bilddateien sind erlaubt.", "error")
+        return redirect(url_for("developer_bundles"))
+
+    b = Bundle(
+        title=title,
+        description=request.form.get("description", "").strip() or None,
+        discount_percent=discount,
+        owner_id=current_user.id,
+        image_path=(
+            save_file(image)
+            if image and image.filename
+            else None
+        )
+    )
+
+    db.session.add(b)
+    db.session.commit()
+
+    return redirect(url_for("edit_bundle", bundle_id=b.id))
+
+
+@app.route("/dashboard/bundle/<int:bundle_id>")
+@login_required
+def edit_bundle(bundle_id):
+    bundle = Bundle.query.get_or_404(bundle_id)
+    role = bundle_role(bundle, current_user)
+
+    if not role:
+        return "Access Denied", 403
+
+    my_games = Game.query.filter_by(
+        developer_id=current_user.id
+    ).all()
+
+    return render_template(
+        "edit_bundle.html",
+        bundle=bundle,
+        role=role,
+        my_games=my_games
+    )
+
+
+@app.route("/dashboard/bundle/<int:bundle_id>/games", methods=["POST"])
+@login_required
+def add_game_to_bundle(bundle_id):
+    bundle = Bundle.query.get_or_404(bundle_id)
+
+    if bundle_role(bundle, current_user) not in (
+            "owner",
+            "manager",
+            "contributor"
+    ):
+        return "Access Denied", 403
+
+    game = db.session.get(
+        Game,
+        request.form.get("game_id", type=int)
+    )
+
+    if not game or game.developer_id != current_user.id:
+        flash(
+            "Du darfst nur deine eigenen Spiele hinzufügen.",
+            "error"
+        )
+    elif BundleGame.query.filter_by(
+            bundle_id=bundle.id,
+            game_id=game.id
+    ).first():
+        flash("Spiel ist bereits im Bundle.", "info")
+    else:
+        db.session.add(
+            BundleGame(
+                bundle_id=bundle.id,
+                game_id=game.id
+            )
+        )
+        db.session.commit()
+        flash("Spiel hinzugefügt.", "success")
+
+    return redirect(
+        url_for("edit_bundle", bundle_id=bundle.id)
+    )
+
+
+@app.route("/dashboard/bundle/<int:bundle_id>/invite", methods=["POST"])
+@login_required
+def invite_bundle_collaborator(bundle_id):
+    bundle = Bundle.query.get_or_404(bundle_id)
+
+    if bundle_role(bundle, current_user) not in (
+            "owner",
+            "manager"
+    ):
+        return "Access Denied", 403
+
+    target = User.query.filter_by(
+        username=request.form.get("username", "").strip()
+    ).first()
+
+    role = request.form.get("role", "contributor")
+
+    if role not in ("manager", "contributor"):
+        role = "contributor"
+
+    if (
+            not target
+            or target.role != "dev"
+            or target.id == bundle.owner_id
+    ):
+        flash("Developer nicht gefunden.", "error")
+        return redirect(
+            url_for("edit_bundle", bundle_id=bundle.id)
+        )
+
+    if BundleCollaborator.query.filter_by(
+            bundle_id=bundle.id,
+            user_id=target.id
+    ).first():
+        flash("Developer wurde bereits eingeladen.", "info")
+        return redirect(
+            url_for("edit_bundle", bundle_id=bundle.id)
+        )
+
+    invite = BundleCollaborator(
+        bundle_id=bundle.id,
+        user_id=target.id,
+        invited_by_id=current_user.id,
+        role=role
+    )
+
+    db.session.add(invite)
+
+    db.session.add(
+        Notification(
+            user_id=target.id,
+            message=(
+                f"{current_user.username} invited you to collaborate "
+                f"on '{bundle.title}'."
+            ),
+            type="bundle_invite"
+        )
+    )
+
+    db.session.commit()
+
+    flash("Einladung gesendet.", "success")
+
+    return redirect(
+        url_for("edit_bundle", bundle_id=bundle.id)
+    )
+
+
+@app.route("/dashboard/bundle/invitation/<int:invite_id>")
+@login_required
+def bundle_invitation_detail(invite_id):
+    invite = BundleCollaborator.query.get_or_404(invite_id)
+
+    if invite.user_id != current_user.id:
+        return "Access Denied", 403
+
+    return render_template(
+        "bundle_invitation.html",
+        invite=invite
+    )
+
+
+@app.route(
+    "/dashboard/bundle/invitation/<int:invite_id>/<action>",
+    methods=["POST"]
+)
+@login_required
+def respond_to_bundle_invite(invite_id, action):
+    invite = BundleCollaborator.query.get_or_404(invite_id)
+
+    if (
+            invite.user_id != current_user.id
+            or invite.status != "pending"
+    ):
+        return "Access Denied", 403
+
+    if action not in ("accept", "decline"):
+        return "Invalid action", 400
+
+    invite.status = (
+        "accepted"
+        if action == "accept"
+        else "declined"
+    )
+
+    db.session.add(
+        Notification(
+            user_id=invite.invited_by_id,
+            message=(
+                f"{current_user.username} {action}ed your invite "
+                f"for '{invite.bundle.title}'."
+            ),
+            type="bundle_invite_response"
+        )
+    )
+
+    db.session.commit()
+
+    return redirect(url_for("developer_bundles"))
 
 @app.route("/send_friend_request/<int:user_id>")
 @login_required
