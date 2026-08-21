@@ -25,7 +25,7 @@ from flask_limiter.util import get_remote_address
 # Stripe API Keys.
 load_dotenv()
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY")
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "fallback_secret_key_if_not_set")
 
 
 limiter = Limiter(
@@ -347,8 +347,6 @@ class LoginOTP(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = db.relationship("User", backref="login_otps")
-    print("DEBUG MAIL_USERNAME:", repr(app.config["MAIL_USERNAME"]))
-    print("DEBUG MAIL_PASSWORD:", len(app.config["MAIL_PASSWORD"] or ""))
 
 class Screenshot(db.Model):
     id = db.Column(db.Integer, primary_key = True)
@@ -866,7 +864,6 @@ def check_sales_expiry():
     if changed:
         db.session.commit()
 
-
 # ---------------------------------------------------------------------------
 # Bundle dashboard routes
 # ---------------------------------------------------------------------------
@@ -1119,6 +1116,17 @@ def respond_to_bundle_invite(invite_id, action):
     db.session.commit()
 
     return redirect(url_for("developer_bundles"))
+
+@app.route("/dashboard/bundle/<int:bundle_id>/publish", methods=["POST"])
+@login_required
+def publish_bundle(bundle_id):
+    # just for the devs
+    bundle = Bundle.query.get_or_404(bundle_id)
+    if bundle_role(bundle, current_user) != "owner": return "Access Denied", 403
+    bundle.is_published = not bundle.is_published
+    db.session.commit()
+    flash(f"Bundle is now {'published' if bundle.is_published else 'hidden'}.", "success")
+    return redirect(url_for('edit_bundle', bundle_id=bundle.id))
 
 @app.route("/send_friend_request/<int:user_id>")
 @login_required
@@ -1951,6 +1959,10 @@ def read_notification(notif_id):
         sender = User.query.filter_by(username=sender_name).first()
         if sender:
             return redirect(url_for('profile', username=sender.username))
+    elif notif.type in ["bundle_invite", "bundle_invite_response"]:
+        return redirect(url_for('developer_bundles'))
+    elif notif.type == "game_update":
+        return redirect(url_for('updates_feed'))
 
     return redirect(url_for("profile", username=current_user.username))
 
@@ -2198,7 +2210,10 @@ def store_front():
             games_by_genre[game.genre] = []
 
         games_by_genre[game.genre].append(game)
-    return render_template("store.html", genres=games_by_genre, all_tags=sorted(all_tags))
+
+    # Load all bundles you see. MAKE IT WOOOOOOORK.. Make it woOOOOOrk.. I JUST WANNA MAKE IT WOOORRRK
+    bundles = Bundle.query.filter_by(is_published=True).all()
+    return render_template("store.html", genres=games_by_genre, all_tags=sorted(all_tags), bundles=bundles)
 
 @app.route("/create-checkout-session/<int:game_id>")
 @login_required
@@ -2260,6 +2275,43 @@ def create_checkout_session(game_id):
         return jsonify(error="Could not create checkout session"), 500
 
 
+@app.route("/bundle/<int:bundle_id>")
+def bundle_detail(bundle_id):
+    bundle = Bundle.query.get_or_404(bundle_id)
+    if not bundle.is_published and not (current_user.is_authenticated and current_user.role == "dev"):
+        return "Bundle not available yet", 404
+    return render_template("bundle_detail.html", bundle=bundle)
+
+
+@app.route("/create-bundle-checkout-session/<int:bundle_id>")
+@login_required
+def create_bundle_checkout_session(bundle_id):
+    bundle = Bundle.query.get_or_404(bundle_id)
+    if not bundle.is_published:
+        return jsonify(error="Bundle is not available"), 400
+
+    if not stripe_keys["secret_key"]: return jsonify(error="Stripe is not configured"), 500
+
+    stripe.api_key = stripe_keys["secret_key"]
+    display_price = bundle.display_price
+    unit_amount = int(round(display_price * 100))
+
+    try:
+        checkout_session = stripe.checkout.Session.create(
+            success_url=(url_for("bundle_success", bundle_id=bundle.id, _external=True) + "?session_id={CHECKOUT_SESSION_ID}"),
+            cancel_url=url_for("bundle_detail", bundle_id=bundle.id, _external=True),
+            payment_method_types=["card"],
+            mode="payment",
+            client_reference_id=str(current_user.id),
+            # ITS A BUNDLE ID!!!!!!!!!!!! Please dont forget this (me)
+            metadata={"user_id": str(current_user.id), "bundle_id": str(bundle.id)},
+            line_items=[{"price_data": {"currency": "eur", "product_data": {"name": bundle.title}, "unit_amount": unit_amount}, "quantity": 1}]
+        )
+        return jsonify({"sessionId": checkout_session.id})
+    except stripe.error.StripeError as e:
+        print(f"DEBUG: Stripe checkout error: {e}")
+        return jsonify(error="Could not create Stripe checkout session"), 500
+
 @app.route("/wishlist")
 @login_required
 def wishlist():
@@ -2274,78 +2326,83 @@ def wishlist():
         games.append(game)
     return render_template("wishlist.html", games=games)
 
+
 def fulfill_checkout(checkout_session_id):
-    """Create the local Purchase only after Stripe confirms payment."""
+    # Create the local Purchase only after Stripe confirms payment.
     stripe.api_key = stripe_keys["secret_key"]
-
     checkout_session = stripe.checkout.Session.retrieve(checkout_session_id)
-
-    if checkout_session.payment_status != "paid":
-        print(
-            f"DEBUG: Checkout {checkout_session.id} is not paid yet "
-            f"(status={checkout_session.payment_status})"
-        )
-        return False
-
+    if checkout_session.payment_status != "paid": return False
     metadata = checkout_session.metadata or {}
 
-    try:
-        user_id = int(metadata["user_id"])
-        game_id = int(metadata["game_id"])
-    except (KeyError, TypeError, ValueError):
-        print(f"DEBUG: Invalid Stripe metadata in checkout {checkout_session.id}")
-        return False
+    try: user_id = int(metadata["user_id"])
+    except (KeyError, TypeError, ValueError): return False
 
-    # Webhooks can be delivered more than once. Do not create duplicate purchases. please
-    existing_purchase = Purchase.query.filter_by(
-        stripe_checkout_session_id=checkout_session.id
-    ).first()
-
-    if existing_purchase:
-        return True
-
-    game = db.session.get(Game, game_id)
     user = db.session.get(User, user_id)
+    if not user: return False
 
-    if not game or not user:
-        print(
-            f"DEBUG: Cannot fulfill checkout {checkout_session.id}: "
-            f"user={user_id}, game={game_id}"
-        )
-        return False
+    # When bundle
+    if "bundle_id" in metadata:
+        bundle = db.session.get(Bundle, int(metadata["bundle_id"]))
+        if not bundle: return False
 
-    # a user should not own the same game twice. (Like DONT GIVE ME ALL YOUR MONEY, give me your entire house instead)
-    existing_purchase = Purchase.query.filter_by(
-        user_id=user_id,
-        game_id=game_id
-    ).first()
+        # Split the price
+        price_per_game = bundle.display_price / len(bundle.games) if bundle.games else 0
 
-    if existing_purchase and not existing_purchase.refunded:
-        if not existing_purchase.stripe_checkout_session_id:
-            existing_purchase.stripe_checkout_session_id = checkout_session.id
-        if not existing_purchase.stripe_payment_intent_id:
-            existing_purchase.stripe_payment_intent_id = checkout_session.payment_intent
+        for bg in bundle.games:
+            game = bg.game
+            # We dont want it to crash
+            unique_session_id = f"{checkout_session.id}|{game.id}"
+
+            existing = Purchase.query.filter_by(stripe_checkout_session_id=unique_session_id).first()
+            if not existing:
+                p = Purchase(
+                    user_id=user.id,
+                    game_id=game.id,
+                    price_paid=price_per_game,
+                    stripe_checkout_session_id=unique_session_id,
+                    stripe_payment_intent_id=f"{checkout_session.payment_intent}|{game.id}",
+                    refunded=False,
+                )
+                db.session.add(p)
+                update_daily_stats(game)
         db.session.commit()
         return True
 
-    purchase = Purchase(
-        user_id=user_id,
-        game_id=game_id,
-        price_paid=calculate_display_price(game),
-        stripe_checkout_session_id=checkout_session.id,
-        stripe_payment_intent_id=checkout_session.payment_intent,
-        refunded=False,
-    )
+    # When its a single game
+    elif "game_id" in metadata:
+        game_id = int(metadata["game_id"])
 
-    db.session.add(purchase)
-    db.session.commit()
-    update_daily_stats(game)
+        # Webhooks can be delivered more than once. Do not create duplicate purchases. please
+        existing_purchase = Purchase.query.filter_by(stripe_checkout_session_id=checkout_session.id).first()
+        if existing_purchase: return True
 
-    print(
-        f"DEBUG: Purchase {purchase.id} fulfilled for user {user_id}, "
-        f"game {game_id}"
-    )
-    return True
+        game = db.session.get(Game, game_id)
+        if not game: return False
+
+        # a user should not own the same game twice. (Like DONT GIVE ME ALL YOUR MONEY, give me your entire house instead)
+        existing_purchase = Purchase.query.filter_by(user_id=user.id, game_id=game_id).first()
+        if existing_purchase and not existing_purchase.refunded:
+            if not existing_purchase.stripe_checkout_session_id:
+                existing_purchase.stripe_checkout_session_id = checkout_session.id
+            if not existing_purchase.stripe_payment_intent_id:
+                existing_purchase.stripe_payment_intent_id = checkout_session.payment_intent
+            db.session.commit()
+            return True
+
+        purchase = Purchase(
+            user_id=user.id,
+            game_id=game_id,
+            price_paid=calculate_display_price(game),
+            stripe_checkout_session_id=checkout_session.id,
+            stripe_payment_intent_id=checkout_session.payment_intent,
+            refunded=False,
+        )
+        db.session.add(purchase)
+        db.session.commit()
+        update_daily_stats(game)
+        return True
+
+    return False
 
 
 @app.route("/stripe/webhook", methods=["POST"])
@@ -2454,69 +2511,70 @@ def success(game_id):
     return render_template("success.html", game=game)
 
 
+@app.route("/bundle_success/<int:bundle_id>")
+@login_required
+def bundle_success(bundle_id):
+    bundle = Bundle.query.get_or_404(bundle_id)
+    session_id = request.args.get("session_id")
+    if not session_id:
+        flash("Missing Stripe checkout session.", "error")
+        return redirect(url_for("bundle_detail", bundle_id=bundle.id))
+
+    try:
+        stripe.api_key = stripe_keys["secret_key"]
+        checkout_session = stripe.checkout.Session.retrieve(session_id)
+
+        if checkout_session.client_reference_id != str(current_user.id):
+            flash("This payment session does not belong to your account.", "error")
+            return redirect(url_for("bundle_detail", bundle_id=bundle.id))
+
+        fulfilled = fulfill_checkout(checkout_session.id)
+        if fulfilled: flash(f"Purchase successful! All games from '{bundle.title}' are now in your library.", "success")
+        else: flash("Payment was successful, but the games could not be added yet.", "error")
+    except Exception as e: flash("Something went wrong.", "error")
+
+    return redirect(url_for("library"))
+
+
 @app.route("/refund/<int:game_id>", methods=["POST"])
 @login_required
 def refund_purchase(game_id):
-    """Request a full Stripe refund and revoke the game's library access."""
-    purchase = Purchase.query.filter_by(
-        user_id=current_user.id,
-        game_id=game_id,
-        refunded=False
-    ).first()
-
-    if not purchase:
-        flash("Purchase not found or it has already been refunded.", "error")
-        return redirect(url_for("library"))
-
-    if not purchase.stripe_payment_intent_id:
-        flash(
-            "This purchase has no Stripe PaymentIntent, so it cannot be refunded automatically.",
-            "error"
-        )
-        return redirect(url_for("library"))
-
-    if not stripe_keys["secret_key"]:
-        flash("Stripe is not configured on the server.", "error")
+    # Request a full Stripe refund and revoke the game's library access.
+    purchase = Purchase.query.filter_by(user_id=current_user.id, game_id=game_id, refunded=False).first()
+    if not purchase or not purchase.stripe_payment_intent_id:
+        flash("Purchase not found or cannot be refunded.", "error")
         return redirect(url_for("library"))
 
     stripe.api_key = stripe_keys["secret_key"]
 
+    # Hole die echte Stripe Payment Intent ID (ohne das '|123' von den Bundles)
+    real_pi = purchase.stripe_payment_intent_id.split('|')[0]
+
     try:
         refund = stripe.Refund.create(
-            payment_intent=purchase.stripe_payment_intent_id,
-            reason="requested_by_customer",
-            metadata={
-                "purchase_id": str(purchase.id),
-                "user_id": str(current_user.id),
-                "game_id": str(game_id),
-            }
+            payment_intent=real_pi,
+            reason="requested_by_customer"
         )
-
         if refund.status not in {"succeeded", "pending"}:
             flash("Stripe did not accept the refund.", "error")
             return redirect(url_for("library"))
 
-        purchase.stripe_refund_id = refund.id
-        purchase.refunded = True
-        purchase.refunded_at = datetime.now(timezone.utc)
+        # We find all buyed games in the bundle
+        #  You cant exploit this hopefully
+        all_related_purchases = Purchase.query.filter(Purchase.stripe_payment_intent_id.like(f"{real_pi}%")).all()
+
+        for p in all_related_purchases:
+            p.stripe_refund_id = refund.id
+            p.refunded = True
+            p.refunded_at = datetime.now(timezone.utc)
+            update_daily_stats(p.game)
+
         db.session.commit()
-
-        game = purchase.game
-        update_daily_stats(game)
-
-        if refund.status == "pending":
-            flash("Your refund was requested and is currently pending.", "success")
-        else:
-            flash("Your purchase has been refunded successfully.", "success")
-
-    except stripe.error.InvalidRequestError as e:
-        print(f"DEBUG: Stripe refund invalid request: {e}")
-        flash("Stripe rejected the refund request. The payment may already be refunded.", "error")
+        if refund.status == "pending": flash("Your refund was requested and is currently pending.", "success")
+        else: flash("Refund successful! The game(s) have been removed from your library.", "success")
 
     except stripe.error.StripeError as e:
-        print(f"DEBUG: Stripe refund error: {e}")
         flash("The refund could not be processed by Stripe.", "error")
-
     return redirect(url_for("library"))
 
 #This Server would cry
