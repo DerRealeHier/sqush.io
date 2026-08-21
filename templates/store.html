@@ -80,6 +80,13 @@
             font-weight: 700;
             font-size: 0.8rem;
         }
+
+        /* Bundle cards reuse the same game-card language as the rest of the
+           store, so this just adds the small bits that are bundle-specific
+           (strike-through original price, "games included" pill). */
+        .bundle-original-price {
+            text-decoration: line-through;
+        }
     </style>
 </head>
 <body>
@@ -167,6 +174,48 @@
 </div>
 
 <div class="container py-5">
+
+    {% if bundles %}
+    <div class="genre-section mb-5">
+        <h2 class="genre-title mb-4 pb-2 border-bottom border-secondary">
+            <i class="bi bi-fire"></i> EPIC BUNDLES
+        </h2>
+        <div class="row g-4">
+            {% for bundle in bundles %}
+            <div class="col-md-4">
+                <div class="game-card h-100">
+                    {% if bundle.discount_percent > 0 %}
+                    <span class="discount-badge">-{{ bundle.discount_percent }}%</span>
+                    {% endif %}
+                    <div class="game-img-wrapper">
+                        <a href="{{ url_for('bundle_detail', bundle_id=bundle.id) }}">
+                            {% if bundle.image_path %}
+                            <img src="{{ url_for('static', filename=bundle.image_path) }}" class="game-cover-img" alt="{{ bundle.title }}">
+                            {% else %}
+                            <div class="bg-secondary w-100 h-100 d-flex align-items-center justify-content-center text-white">No Image</div>
+                            {% endif %}
+                        </a>
+                    </div>
+                    <div class="p-3 text-center">
+                        <h3 class="comic-card-title mb-2">{{ bundle.title }}</h3>
+                        <div class="mb-2">
+                            <span class="view-count-badge">{{ bundle.games|length }} Games</span>
+                        </div>
+                        <div class="my-2">
+                            {% if bundle.discount_percent > 0 %}
+                            <span class="text-danger bundle-original-price small me-1">{{ "%.2f"|format(bundle.original_price) }}€</span>
+                            {% endif %}
+                            <span class="comic-price">{{ "%.2f"|format(bundle.display_price) }}€</span>
+                        </div>
+                        <a href="{{ url_for('bundle_detail', bundle_id=bundle.id) }}" class="btn comic-btn-store mt-2">View Bundle</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
     <div class="filter-panel mb-5">
         <div class="row g-4">
             <div class="col-md-4">
@@ -187,53 +236,7 @@
                 <input class="form-check-input filter-check me-3" type="checkbox" id="saleFilter">
                 <label class="filter-label filter-check-label mt-2" for="saleFilter">ONLY SALES</label>
             </div>
-            <!-- BUNDLE SECTION (Einfach über deine normalen Genres packen) -->
-            {% if bundles %}
-            <div class="genre-section mb-5">
-                <h2 class="text-danger mb-4 pb-2 border-bottom border-secondary" style="font-family: 'Bangers'; letter-spacing: 2px;">
-                    <i class="bi bi-fire"></i> EPIC BUNDLES
-                </h2>
-                <div class="row g-4">
-                    {% for bundle in bundles %}
-                    <div class="col-md-4">
-                        <div class="game-card h-100 position-relative">
-                            <a href="{{ url_for('bundle_detail', bundle_id=bundle.id) }}" class="text-decoration-none d-block h-100">
-                                <div class="game-img-wrapper position-relative" style="height: 160px; overflow: hidden;">
-                                    {% if bundle.image_path %}
-                                    <img src="{{ url_for('static', filename=bundle.image_path) }}" class="w-100 h-100 object-fit-cover" alt="{{ bundle.title }}">
-                                    {% else %}
-                                    <div class="bg-secondary w-100 h-100 d-flex align-items-center justify-content-center text-white">No Image</div>
-                                    {% endif %}
 
-                                    {% if bundle.discount_percent > 0 %}
-                                    <div class="position-absolute bottom-0 start-0 bg-primary text-white px-2 py-1 m-2 fw-bold border border-2 border-dark z-3" style="transform: rotate(-3deg);">
-                                        -{{ bundle.discount_percent }}% BUNDLE
-                                    </div>
-                                    {% endif %}
-                                </div>
-
-                                <div class="p-3 bg-dark h-100 d-flex flex-column">
-                                    <h5 class="text-warning fw-bold mb-1" style="font-family: 'Bangers'; font-size: 1.4rem;">{{ bundle.title }}</h5>
-                                    <p class="text-muted small mb-2" style="font-family: 'Comic Neue'; fw-bold">{{ bundle.games|length }} Games included</p>
-
-                                    <div class="mt-auto d-flex justify-content-between align-items-center">
-                                        {% if bundle.discount_percent > 0 %}
-                                        <div>
-                                            <span class="text-danger text-decoration-line-through small me-1">{{ "%.2f"|format(bundle.original_price) }}€</span>
-                                            <span class="text-success fw-bold fs-5">{{ "%.2f"|format(bundle.display_price) }}€</span>
-                                        </div>
-                                        {% else %}
-                                        <span class="text-success fw-bold fs-5">{{ "%.2f"|format(bundle.display_price) }}€</span>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </a>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
             <div class="col-md-6">
                 <label class="filter-label">Genres <span class="filter-active-count d-none" id="genreActiveCount"></span></label>
                 <div class="filter-pill-group genre-pills" id="genrePillGroup">
