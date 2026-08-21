@@ -107,7 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Sale countdown timers
     // Yea for some reason I had two timers before, and one just
-    //blew away the memory and CPU usage. Should be fixed now.
+    // blew away the memory and CPU usage. Should be fixed now.
     const timerElements = document.querySelectorAll(".timer");
     timerElements.forEach(timerElement => {
         const dateStr = timerElement.getAttribute("data-end");
