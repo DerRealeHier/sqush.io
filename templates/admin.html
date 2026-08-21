@@ -3,33 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <title>Sqush Dev Dashboard</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/style.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:wght@400;700&display=swap"
+          rel="stylesheet">
+    <link href="{{ url_for('static', filename='CSS/style.css') }}" rel="stylesheet">
     <style>
-        /*  cant get this into the sheett */
-        :root{
-            --ink:#0d0d0d;
-            --paper:#161616;
-            --yellow:#ffe14d;
-            --red:#ff3b30;
-            --blue:#3aa0ff;
-            --green:#33d17a;
+        :root {
+            --ink: #0d0d0d;
+            --paper: #161616;
+            --yellow: #ffe14d;
+            --red: #ff3b30;
+            --blue: #3aa0ff;
+            --green: #33d17a;
         }
 
         body {
             background-color: var(--ink);
-            background-image: radial-gradient(rgba(255,255,255,0.06) 1.5px, transparent 1.5px);
+            background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1.5px, transparent 1.5px);
             background-size: 14px 14px;
             color: #fff;
             font-family: 'Comic Neue', sans-serif;
         }
 
-        h2, h4, .comic-font { font-family: 'Bangers', 'Comic Neue', sans-serif; letter-spacing: 1px; }
+        h2, h4, .comic-font {
+            font-family: 'Bangers', 'Comic Neue', sans-serif;
+            letter-spacing: 1px;
+        }
 
-        h4 { color: var(--yellow); font-size: 2rem; }
+        h4 {
+            color: var(--yellow);
+            font-size: 2rem;
+        }
 
         .dev-panel {
             background: var(--paper);
@@ -40,7 +46,13 @@
             position: relative;
         }
 
-        label { color: #bbb; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        label {
+            color: #bbb;
+            font-weight: 700;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
 
         .form-control, .form-select {
             border: 3px solid #000 !important;
@@ -49,18 +61,32 @@
             background: #222 !important;
             color: #fff !important;
         }
-        .form-control::placeholder { color: #888; }
+
+        .form-control::placeholder {
+            color: #888;
+        }
+
         .form-control:focus, .form-select:focus {
             border-color: var(--yellow) !important;
             box-shadow: 3px 3px 0px var(--yellow) !important;
         }
+
         .form-check-input {
             border: 2px solid #000;
-            width: 2.5em; height: 1.3em;
+            width: 2.5em;
+            height: 1.3em;
         }
-        .form-check-input:checked { background-color: var(--green); border-color: #000; }
 
-        .sale-box { background: #202020; border: 2px solid #000; padding: 15px; }
+        .form-check-input:checked {
+            background-color: var(--green);
+            border-color: #000;
+        }
+
+        .sale-box {
+            background: #202020;
+            border: 2px solid #000;
+            padding: 15px;
+        }
 
         .btn-comic-submit {
             background: var(--green);
@@ -72,7 +98,13 @@
             box-shadow: 6px 6px 0px #000;
             transition: transform 0.1s ease;
         }
-        .btn-comic-submit:hover { background: var(--green); color: #000; transform: translate(2px, 2px); box-shadow: 4px 4px 0px #000; }
+
+        .btn-comic-submit:hover {
+            background: var(--green);
+            color: #000;
+            transform: translate(2px, 2px);
+            box-shadow: 4px 4px 0px #000;
+        }
 
         .game-item {
             background: var(--paper);
@@ -81,15 +113,47 @@
             padding: 18px;
             margin-bottom: 20px;
         }
-        .game-item h5 { font-family: 'Bangers', sans-serif; letter-spacing: 0.5px; font-size: 1.4rem; color: #fff; }
 
-        .tag-badge { background-color: var(--yellow) !important; color: #000; font-weight: 900; margin-right: 5px; font-size: 0.7rem; border: 1px solid #000; }
-        .demo-badge { background-color: var(--blue) !important; color: #000; font-weight: 900; margin-right: 5px; font-size: 0.7rem; border: 1px solid #000; }
-        .sale-badge { background: var(--red); color: #fff; font-weight: 900; padding: 3px 8px; border: 2px solid #000; }
+        .game-item h5 {
+            font-family: 'Bangers', sans-serif;
+            letter-spacing: 0.5px;
+            font-size: 1.4rem;
+            color: #fff;
+        }
+
+        .tag-badge {
+            background-color: var(--yellow) !important;
+            color: #000;
+            font-weight: 900;
+            margin-right: 5px;
+            font-size: 0.7rem;
+            border: 1px solid #000;
+        }
+
+        .demo-badge {
+            background-color: var(--blue) !important;
+            color: #000;
+            font-weight: 900;
+            margin-right: 5px;
+            font-size: 0.7rem;
+            border: 1px solid #000;
+        }
+
+        .sale-badge {
+            background: var(--red);
+            color: #fff;
+            font-weight: 900;
+            padding: 3px 8px;
+            border: 2px solid #000;
+        }
 
         .view-count-badge {
-            background: #000; color: var(--yellow); padding: 3px 8px;
-            border: 1px solid var(--yellow); font-size: 0.75rem; font-weight: bold;
+            background: #000;
+            color: var(--yellow);
+            padding: 3px 8px;
+            border: 1px solid var(--yellow);
+            font-size: 0.75rem;
+            font-weight: bold;
         }
 
         .edit-btn {
@@ -99,30 +163,40 @@
             font-weight: 900;
             box-shadow: 3px 3px 0px #000;
         }
-        .edit-btn:hover { background: var(--yellow); color: #000; transform: translate(1px, 1px); box-shadow: 2px 2px 0px #000; }
+
+        .edit-btn:hover {
+            background: var(--yellow);
+            color: #000;
+            transform: translate(1px, 1px);
+            box-shadow: 2px 2px 0px #000;
+        }
 
         .thumb-frame {
             border: 3px solid #000;
             box-shadow: 3px 3px 0px #000;
-            width: 90px; height: 65px; object-fit: cover;
+            width: 90px;
+            height: 65px;
+            object-fit: cover;
         }
     </style>
 </head>
 <body>
 <nav class="container p-4 d-flex justify-content-between align-items-center">
     <div>
-        <a href="{{ url_for('home') }}" class="NavBar">HOME</a>
-        <a href="{{ url_for('store_front') }}" class="NavBar ms-3">STORE</a>
+        <a class="NavBar" href="{{ url_for('home') }}">HOME</a>
+        <a class="NavBar ms-3" href="{{ url_for('store_front') }}">STORE</a>
+        <a class="NavBar ms-3" href="{{ url_for('developer_bundles') }}">BUNDLES</a>
     </div>
     {% if current_user.is_authenticated %}
     <div class="comic-auth-box">
         <span class="comic-username">{{ current_user.username }}</span>
-        <a href="{{ url_for('logout') }}" class="comic-logout-btn">LOGOUT</a>
+        <a class="comic-logout-btn" href="{{ url_for('logout') }}">LOGOUT</a>
     </div>
     {% else %}
     <div class="comic-auth-box">
-        <a href="{{ url_for('login') }}" class="comic-logout-btn" style="background:#2196f3;">LOGIN</a>
-        <a href="{{ url_for('register') }}" class="comic-logout-btn" style="background:#ffeb3b; color:#000;">REGISTER</a>
+        <a class="comic-logout-btn" href="{{ url_for('login') }}" style="background:#2196f3;">LOGIN</a>
+        <a class="comic-logout-btn" href="{{ url_for('register') }}"
+           style="background:#ffeb3b; color:#000;">REGISTER</a>
     </div>
     {% endif %}
 </nav>
@@ -135,14 +209,14 @@
         <div class="col-md-6">
             <div class="dev-panel">
                 <h4 class="mb-4"><i class="bi bi-rocket-takeoff-fill"></i> Release New Game</h4>
-                <form action="/dashboard" method="POST" enctype="multipart/form-data">
+                <form action="/dashboard" enctype="multipart/form-data" method="POST">
                     <div class="mb-3">
                         <label>Game Title</label>
-                        <input type="text" name="title" class="form-control" required>
+                        <input class="form-control" name="title" required type="text">
                     </div>
                     <div class="mb-3">
                         <label>Priority</label>
-                        <select name="priority" class="form-select">
+                        <select class="form-select" name="priority">
                             <option value="normal">Normal</option>
                             <option value="high">High</option>
                         </select>
@@ -150,47 +224,47 @@
                     <div class="row">
                         <div class="col-6 mb-3">
                             <label>Genre</label>
-                            <input type="text" name="genre" class="form-control" required>
+                            <input class="form-control" name="genre" required type="text">
                         </div>
                         <div class="col-6 mb-3">
                             <label>Price (€)</label>
-                            <input type="number" step="0.01" name="price" class="form-control" required>
+                            <input class="form-control" name="price" required step="0.01" type="number">
                         </div>
                     </div>
                     <div class="mb-3">
                         <label>Tags (Comma separated)</label>
-                        <input type="text" name="tags" class="form-control" placeholder="Action, RPG, Indie">
+                        <input class="form-control" name="tags" placeholder="Action, RPG, Indie" type="text">
                     </div>
                     <div class="sale-box mb-4">
                         <div class="form-check form-switch mb-2">
-                            <input class="form-check-input" type="checkbox" name="is_on_sale" id="saleSwitch">
+                            <input class="form-check-input" id="saleSwitch" name="is_on_sale" type="checkbox">
                             <label class="form-check-label" for="saleSwitch">Activate Sale</label>
                         </div>
                         <label>Discount in Percent (%)</label>
-                        <input type="number" name="discount_percent" class="form-control" value="0" min="0" max="99">
+                        <input class="form-control" max="99" min="0" name="discount_percent" type="number" value="0">
                     </div>
                     <div class="mb-3">
                         <label>Sale End Date</label>
-                        <input type="datetime-local" name="sale_end_date" class="form-control" >
+                        <input class="form-control" name="sale_end_date" type="datetime-local">
                     </div>
                     <div class="mb-3">
                         <label>Thumbnail</label>
-                        <input type="file" name="image" class="form-control" accept="image/*" required>
+                        <input accept="image/*" class="form-control" name="image" required type="file">
                     </div>
                     <div class="mb-3">
                         <label>Video (File or YouTube Link)</label>
-                        <input type="file" name="video_file" class="form-control mb-2" accept="video/mp4">
-                        <input type="text" name="video_youtube" class="form-control" placeholder="OR YouTube Link...">
+                        <input accept="video/mp4" class="form-control mb-2" name="video_file" type="file">
+                        <input class="form-control" name="video_youtube" placeholder="OR YouTube Link..." type="text">
                     </div>
                     <div class="mb-3">
                         <label>Game File (.zip / .exe)</label>
-                        <input type="file" name="game_file" class="form-control" required>
+                        <input class="form-control" name="game_file" required type="file">
                     </div>
                     <div class="mb-4">
                         <label><i class="bi bi-controller"></i> Demo (optional, .zip / .exe)</label>
-                        <input type="file" name="demo_file" class="form-control" accept=".zip,.exe">
+                        <input accept=".zip,.exe" class="form-control" name="demo_file" type="file">
                     </div>
-                    <button type="submit" class="btn btn-comic-submit w-100">Release it!</button>
+                    <button class="btn btn-comic-submit w-100" type="submit">Release it!</button>
                 </form>
             </div>
         </div>
@@ -201,7 +275,7 @@
             {% for game in games %}
             <div class="game-item d-flex align-items-center justify-content-between">
                 <div class="flex-grow-1">
-                    <a href="{{ url_for('game_detail', game_id=game.id) }}" class="text-decoration-none">
+                    <a class="text-decoration-none" href="{{ url_for('game_detail', game_id=game.id) }}">
                         <h5 class="mb-1">{{game.title}}</h5>
                     </a>
                     <div class="mb-2">
@@ -220,24 +294,27 @@
                     <div class="small mb-2">
                         {% if game.is_on_sale %}
                         <span class="text-decoration-line-through" style="color: var(--blue);">{{ "%.2f"|format(game.price) }}€</span>
-                        <span class="fw-bold ms-1" style="color: var(--green);">{{ "%.2f"|format(game.display_price) }}€</span>
+                        <span class="fw-bold ms-1"
+                              style="color: var(--green);">{{ "%.2f"|format(game.display_price) }}€</span>
                         <span class="sale-badge ms-2">-{{ game.discount_percent }}%</span>
                         {% else %}
                         <span class="fw-bold text-light">{{ "%.2f"|format(game.price) }}€</span>
                         {% endif %}
                     </div>
                     {% if game.developer_id == current_user.id %}
-                    <a href="{{ url_for('edit_game', game_id=game.id) }}" class="btn edit-btn btn-sm">EDIT GAME</a>
-                    <a href="{{ url_for('update_game', game_id=game.id) }}" class="btn edit-btn btn-sm" style="background: var(--green);">
+                    <a class="btn edit-btn btn-sm" href="{{ url_for('edit_game', game_id=game.id) }}">EDIT GAME</a>
+                    <a class="btn edit-btn btn-sm" href="{{ url_for('update_game', game_id=game.id) }}"
+                       style="background: var(--green);">
                         <i class="bi bi-cloud-arrow-up-fill"></i> UPDATE
                     </a>
-                    <a href="{{ url_for('game_stats', game_id=game.id) }}" class="btn edit-btn btn-sm" style="background: var(--blue);">
+                    <a class="btn edit-btn btn-sm" href="{{ url_for('game_stats', game_id=game.id) }}"
+                       style="background: var(--blue);">
                         <i class="bi bi-graph-up"></i> STATS
                     </a>
                     {% endif %}
                 </div>
                 {% if game.image_path %}
-                <img src="{{ url_for('static', filename=game.image_path) }}" class="thumb-frame">
+                <img class="thumb-frame" src="{{ url_for('static', filename=game.image_path) }}">
                 {% endif %}
             </div>
             {% endfor %}
