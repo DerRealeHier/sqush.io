@@ -991,18 +991,342 @@ h1 { text-transform: uppercase; font-size: 3.4rem ; text-shadow: 4px 4px 0px var
     font-size: 1.05rem;
 }
 
-/* New CSS class for bundle items*/
-.bundle-item {
-    background: var(--paper);
-    border: 3px solid #fff;
-    box-shadow: 6px 6px 0px #000;
+
+
+body.bundle-dashboard {
+    --ink: #0d0d0d;
+    --paper: #161616;
+    --yellow: #ffe14d;
+    --red: #ff3b30;
+    --blue: #3aa0ff;
+    --green: #33d17a;
+
+    background-color: var(--ink) !important;
+    background-image:
+            radial-gradient(
+                    rgba(255, 255, 255, 0.06) 1.5px,
+                    transparent 1.5px
+            ) !important;
+    background-size: 14px 14px !important;
+
+    color: #fff !important;
+    font-family: 'Comic Neue', sans-serif !important;
+}
+
+/* Typography */
+
+body.bundle-dashboard h1,
+body.bundle-dashboard h2,
+body.bundle-dashboard h3,
+body.bundle-dashboard h4,
+body.bundle-dashboard h5,
+body.bundle-dashboard .comic-font {
+    font-family: 'Bangers', 'Comic Neue', sans-serif !important;
+    letter-spacing: 1px;
+}
+
+body.bundle-dashboard h1,
+body.bundle-dashboard h2 {
+    text-transform: uppercase;
+}
+
+/* Page Header */
+
+body.bundle-dashboard .bundle-header {
+    border-bottom: 3px solid #000;
+    padding-bottom: 18px;
+    margin-bottom: 30px;
+}
+
+body.bundle-dashboard .bundle-header h2 {
+    color: var(--yellow) !important;
+    font-size: 2.45rem;
+    margin: 0;
+}
+
+body.bundle-dashboard .bundle-header p {
+    color: #a7a7a7 !important;
+}
+
+/* Main Panels */
+
+body.bundle-dashboard .dev-panel {
+    background: var(--paper) !important;
+    border: 4px solid #000 !important;
+    box-shadow: 10px 10px 0 #000 !important;
+    padding: 30px !important;
+    color: #fff !important;
+    margin-bottom: 30px;
+    position: relative;
+}
+
+body.bundle-dashboard .dev-panel h4 {
+    color: var(--yellow) !important;
+    font-size: 2rem;
+}
+
+/* Forms */
+
+body.bundle-dashboard label {
+    color: #bbb !important;
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+body.bundle-dashboard .form-control,
+body.bundle-dashboard .form-select,
+body.bundle-dashboard textarea {
+    border: 3px solid #000 !important;
+    border-radius: 0 !important;
+    font-weight: 700;
+    background: #222 !important;
+    color: #fff !important;
+}
+
+body.bundle-dashboard .form-control::placeholder,
+body.bundle-dashboard textarea::placeholder {
+    color: #888 !important;
+}
+
+body.bundle-dashboard .form-control:focus,
+body.bundle-dashboard .form-select:focus,
+body.bundle-dashboard textarea:focus {
+    background: #222 !important;
+    color: #fff !important;
+    border-color: var(--yellow) !important;
+    box-shadow: 3px 3px 0 var(--yellow) !important;
+}
+
+/* Sale / Info Boxes */
+
+body.bundle-dashboard .sale-box {
+    background: #202020 !important;
+    border: 2px solid #000 !important;
     padding: 15px;
+    color: #fff;
+}
+
+/* Buttons */
+
+body.bundle-dashboard .btn-comic-submit {
+    background: var(--green) !important;
+    border: 4px solid #000 !important;
+    color: #000 !important;
+    font-family: 'Bangers', sans-serif !important;
+    letter-spacing: 1px;
+    font-size: 1.4rem;
+    box-shadow: 6px 6px 0 #000 !important;
+    transition: transform 0.1s ease;
+}
+
+body.bundle-dashboard .btn-comic-submit:hover {
+    background: var(--green) !important;
+    color: #000 !important;
+    transform: translate(2px, 2px);
+    box-shadow: 4px 4px 0 #000 !important;
+}
+
+body.bundle-dashboard .edit-btn {
+    background: var(--yellow) !important;
+    color: #000 !important;
+    border: 3px solid #000 !important;
+    font-weight: 900;
+    box-shadow: 3px 3px 0 #000 !important;
+}
+
+body.bundle-dashboard .edit-btn:hover {
+    background: var(--yellow) !important;
+    color: #000 !important;
+    transform: translate(1px, 1px);
+    box-shadow: 2px 2px 0 #000 !important;
+}
+
+body.bundle-dashboard .comic-danger-btn {
+    background: var(--red) !important;
+    color: #fff !important;
+    border: 4px solid #000 !important;
+    box-shadow: 6px 6px 0 #000 !important;
+    font-family: 'Bangers', sans-serif !important;
+    font-size: 1.25rem;
+    letter-spacing: 1px;
+}
+
+body.bundle-dashboard .comic-danger-btn:hover {
+    background: var(--red) !important;
+    color: #fff !important;
+    transform: translate(2px, 2px);
+    box-shadow: 4px 4px 0 #000 !important;
+}
+
+/* Game / Bundle Items */
+
+body.bundle-dashboard .game-item {
+    background: var(--paper) !important;
+    border: 3px solid #000 !important;
+    box-shadow: 6px 6px 0 #000 !important;
+    color: #fff !important;
+    padding: 18px;
     margin-bottom: 20px;
 }
 
-.bundle-title {
+body.bundle-dashboard .game-item h5 {
+    font-family: 'Bangers', sans-serif !important;
+    letter-spacing: 0.5px;
+    font-size: 1.4rem;
+    color: #fff !important;
+}
+
+/* Badges */
+
+body.bundle-dashboard .view-count-badge {
+    background: #000 !important;
+    color: var(--yellow) !important;
+    padding: 3px 8px;
+    border: 1px solid var(--yellow);
+    font-size: 0.75rem;
+    font-weight: bold;
+    display: inline-block;
+}
+
+body.bundle-dashboard .bundle-role-badge {
+    border: 2px solid #000 !important;
+    font-weight: 900;
+    padding: 4px 9px;
+}
+
+body.bundle-dashboard .bundle-owner-badge {
+    background: var(--red) !important;
+    color: #fff !important;
+}
+
+body.bundle-dashboard .bundle-manager-badge {
+    background: var(--blue) !important;
+    color: #000 !important;
+}
+
+body.bundle-dashboard .bundle-contributor-badge {
+    background: var(--yellow) !important;
+    color: #000 !important;
+}
+
+body.bundle-dashboard .bundle-published-badge {
+    background: var(--green) !important;
+    color: #000 !important;
+}
+
+body.bundle-dashboard .bundle-draft-badge {
+    background: var(--yellow) !important;
+    color: #000 !important;
+}
+
+/* Bundle Cover */
+
+body.bundle-dashboard .bundle-cover,
+body.bundle-dashboard .bundle-cover-small {
+    width: 100%;
+    object-fit: cover;
+    display: block;
+    border: 3px solid #000;
+    box-shadow: 6px 6px 0 #000;
+}
+
+body.bundle-dashboard .bundle-cover {
+    max-height: 420px;
+}
+
+body.bundle-dashboard .bundle-cover-small {
+    height: 145px;
+}
+
+body.bundle-dashboard .bundle-empty-image {
+    width: 100%;
+    height: 145px;
+    background: #252525 !important;
+    color: #888 !important;
+    border: 3px solid #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Game Thumbnail */
+
+body.bundle-dashboard .thumb-frame {
+    border: 3px solid #000;
+    box-shadow: 3px 3px 0 #000;
+    width: 90px;
+    height: 65px;
+    object-fit: cover;
+}
+
+/* Bundle Game Cards */
+
+body.bundle-dashboard .bundle-game-card {
+    background: var(--paper);
+    border: 3px solid #000;
+    box-shadow: 6px 6px 0 #000;
+    padding: 15px;
+    min-height: 100px;
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+body.bundle-dashboard .bundle-game-card:hover {
+    transform: translate(2px, 2px);
+    box-shadow: 3px 3px 0 #000;
+}
+
+body.bundle-dashboard .bundle-game-image {
+    width: 85px;
+    height: 65px;
+    object-fit: cover;
+    border: 3px solid #000;
+    flex-shrink: 0;
+}
+
+/* Bundle Price */
+
+body.bundle-dashboard .bundle-price-panel {
+    position: sticky;
+    top: 20px;
+}
+
+body.bundle-dashboard .bundle-stat-box {
+    background: #202020;
+    border: 2px solid #000;
+    padding: 12px;
     font-family: 'Bangers', sans-serif;
-    color: var(--yellow);
-    letter-spacing: 1px;
     font-size: 1.5rem;
+    color: #fff;
+}
+
+body.bundle-dashboard .bundle-stat-box small {
+    display: block;
+    font-family: 'Comic Neue', sans-serif;
+    font-size: 0.75rem;
+    color: #aaa;
+    text-transform: uppercase;
+}
+
+/* Responsive */
+
+@media (max-width: 768px) {
+    body.bundle-dashboard .bundle-header {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 15px;
+    }
+
+    body.bundle-dashboard .bundle-header h2 {
+        font-size: 2rem;
+    }
+
+    body.bundle-dashboard .dev-panel {
+        padding: 20px !important;
+    }
+
+    body.bundle-dashboard .bundle-price-panel {
+        position: static;
+    }
 }
