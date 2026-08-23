@@ -2192,6 +2192,21 @@ def buy(game_id):
     game.display_price = calculate_display_price(game)
     return render_template("buy.html", game=game)
 
+
+@app.route("/buy_bundle/<int:bundle_id>", methods=["GET", "POST"])
+@login_required
+def buy_bundle(bundle_id):
+    bundle = Bundle.query.get_or_404(bundle_id)
+    # Nur erlauben, falls veröffentlicht ODER falls es ein angemeldeter Developer (Besitzer) ist
+    if not bundle.is_published and not (current_user.is_authenticated and current_user.role == "dev"):
+        return "Bundle not available yet", 404
+
+    # WICHTIG: Du musst jetzt eine Datei namens "buy_bundle.html" in deinem templates-Ordner erstellen.
+    # Tipp: Kopiere dir am besten den Inhalt von deiner "buy.html" und ändere die variablen von
+    # game.irgendwas zu bundle.irgendwas, damit die Seite für Bundles funktioniert!
+    return render_template("buy_bundle.html", bundle=bundle)
+
+
 #Store Page
 @app.route("/store")
 def store_front():
