@@ -162,11 +162,10 @@
                 </h1>
 
                 {% if current_user.is_authenticated %}
-                <button id="buyBundleBtn"
-                        data-bundle-id="{{ bundle.id }}"
-                        class="btn btn-comic-submit w-100 py-3">
+                <a href="{{ url_for('buy_bundle', bundle_id=bundle.id) }}"
+                   class="btn btn-comic-submit w-100 py-3 d-block text-decoration-none">
                     <i class="bi bi-lightning-charge-fill"></i> CHECKOUT NOW
-                </button>
+                </a>
                 {% else %}
                 <a class="btn btn-comic-submit w-100 py-3"
                    href="{{ url_for('login') }}">
