@@ -266,6 +266,7 @@ a {
 .game-card:hover, .home-sale-card:hover {
     transform: translate(-4px, -4px);
     box-shadow: 12px 12px 0px #000000;
+    z-index: 10;
 }
 
 .home-card-img-wrapper, .game-img-wrapper {
@@ -389,8 +390,8 @@ a {
 
 /* Store primary call-to-action button */
 .comic-btn-store {
-    background: #ff5722;
-    color: #fff ;
+    background: #ff5722 !important;
+    color: #fff !important;
     font-weight: 900;
     text-transform: uppercase;
     border: 3px solid #000;
@@ -404,10 +405,19 @@ a {
 }
 
 .comic-btn-store:hover {
-    background: #ffeb3b;
-    color: #000 ;
-    transform: translate(2px, 2px);
-    box-shadow: 2px 2px 0px #000;
+    background: #ffeb3b !important;
+    color: #000 !important;
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0px #000;
+    cursor: pointer;
+}
+
+/* Keep orange background when item is in cart (Bootstrap .active override), but allow hover to still show yellow */
+.comic-btn-store.active,
+.comic-btn-store:active {
+    background: #ff5722 !important;
+    color: #fff !important;
+    border-color: #000 !important;
 }
 
 /* Hidden video background overlay showing on hover states */
@@ -581,8 +591,8 @@ h1 { text-transform: uppercase; font-size: 3.4rem ; text-shadow: 4px 4px 0px var
     background-color: #28a745;
     transition: all 0.1s;
 }
-.btn-comic:hover { transform: translate(-3px, -3px); box-shadow: 9px 9px 0px #000 ; }
-.btn-comic:active { transform: translate(3px, 3px); box-shadow: 2px 2px 0px #000 ; }
+.btn-comic:hover { transform: translate(-4px, -4px); box-shadow: 10px 10px 0px #000; filter: brightness(1.1); }
+.btn-comic:active { transform: translate(3px, 3px); box-shadow: 2px 2px 0px #000; }
 
 /* Textarea wrapper components inside the rating module */
 .rating-section {
