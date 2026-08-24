@@ -81,6 +81,90 @@ document.addEventListener('DOMContentLoaded', () => {
             .catch(err => console.error("Wishlist Fehler:", err));
     });
 
+    // Cart system toggle
+    document.addEventListener("click", (e) => {
+        const btn = e.target.closest(".cart-btn");
+        if (!btn) return;
+        
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const gameId = btn.getAttribute("data-game-id");
+        const inCart = btn.classList.contains("active");
+        const url = inCart ? `/cart/remove/${gameId}` : `/cart/add/${gameId}`;
+        
+        // Pass the HMAC nonce if available
+        const headers = { "Content-Type": "application/json" };
+        if (window.squshCartToken) {
+            headers["X-Cart-Token"] = window.squshCartToken;
+        }
+
+        fetch(url, { method: "POST", headers: headers })
+            .then(res => {
+                if (res.status === 401 || res.redirected) {
+                    window.location.href = "/login";
+                    return null;
+                }
+                if (res.status === 400) {
+                    // might be bot protection failed or game already owned
+                    return res.json().then(data => { alert(data.error || "Can't do that"); return null; });
+                }
+                return res.json();
+            })
+            .then(data => {
+                if (!data) return;
+                
+                const icon = btn.querySelector("i");
+                if (data.in_cart) {
+                    btn.classList.add("active");
+                    icon.classList.replace("bi-cart-plus", "bi-cart-fill");
+                } else {
+                    btn.classList.remove("active");
+                    icon.classList.replace("bi-cart-fill", "bi-cart-plus");
+                    
+                    // If we are on the cart page, remove the item's row
+                    if (window.location.pathname === "/cart") {
+                        const row = document.getElementById(`cart-item-${gameId}`);
+                        if (row) row.remove();
+                        // Realistically we'd recalculate the total price here, but let's just reload for simplicity
+                        window.location.reload();
+                    }
+                }
+                
+                // Update all badge counts!
+                document.querySelectorAll(".cart-count-badge").forEach(badge => {
+                    badge.textContent = data.cart_count;
+                    if (data.cart_count === 0) badge.classList.add("d-none");
+                    else badge.classList.remove("d-none");
+                });
+            })
+            .catch(err => console.error("Cart Fehler:", err));
+    });
+
+    // Cart checkout handler
+    const cartCheckoutBtn = document.querySelector("#cartCheckoutBtn");
+    if (cartCheckoutBtn) {
+        fetch("/config")
+            .then((result) => result.json())
+            .then((data) => {
+                const stripe = Stripe(data.publicKey);
+                cartCheckoutBtn.addEventListener("click", (e) => {
+                    e.preventDefault();
+                    fetch("/create-cart-checkout-session")
+                        .then((result) => result.json())
+                        .then((data) => {
+                            if (data.error) {
+                                alert(data.error);
+                                return;
+                            }
+                            return stripe.redirectToCheckout({ sessionId: data.sessionId });
+                        })
+                        .catch((err) => { console.error("Stripe Cart Fehler:", err); });
+                });
+            })
+            .catch((err) => { console.error("Stripe config Fehler:", err); });
+    }
+
     //  Stripe checkout
     // Only hit /config (and init Stripe) on pages that actually have a buy button.
     // Previously this fetch ran on every single page load, even ones without checkout.
