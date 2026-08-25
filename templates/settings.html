@@ -223,6 +223,7 @@
         <div class="navbarContent d-flex justify-content-center align-items-center flex-wrap gap-3 m-0 w-100">
             <a class="NavBar" href="/">Home</a>
             <a class="NavBar" href="/store">Store</a>
+            <a class="NavBar" href="/cart">CART <span class="badge bg-danger cart-count-badge {% if cart_count == 0 %}d-none{% endif %}">{{ cart_count }}</span></a>
             <a class="NavBar" href="/community">COMMUNITY</a>
             <a class="NavBar" href="/settings">HELP</a>
         </div>
@@ -452,5 +453,6 @@
 {% endif %}
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>window.squshCartToken = "{{ cart_token }}";</script>
 </body>
 </html>
