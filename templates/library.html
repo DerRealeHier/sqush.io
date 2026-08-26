@@ -6,35 +6,28 @@
 
     <link rel="stylesheet"
           href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-
     <link rel="stylesheet"
           href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
-
     <link rel="preconnect" href="https://fonts.googleapis.com">
-
     <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:wght@400;700&display=swap"
           rel="stylesheet">
-
     <link rel="stylesheet"
           href="{{ url_for('static', filename='CSS/style.css') }}">
 
     <style>
-
         .library-header {
             display: flex;
             justify-content: space-between;
             align-items: end;
-            margin-bottom: 40px;
+            margin-bottom: 28px;
             gap: 20px;
         }
-
         .library-subtitle {
             color: #ccc;
             font-family: 'Comic Neue', sans-serif;
             font-weight: 700;
             font-size: 1.1rem;
         }
-
         .library-count {
             background: var(--yellow, #ffeb3b);
             color: #000;
@@ -47,631 +40,718 @@
             transform: rotate(2deg);
         }
 
+        /* View toggle */
+        .view-toggle-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 32px;
+            flex-wrap: wrap;
+        }
+        .btn-view {
+            font-family: 'Bangers', sans-serif;
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+            border: 3px solid #fff;
+            background: transparent;
+            color: #fff;
+            padding: 7px 20px;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+            box-shadow: 4px 4px 0 #000;
+        }
+        .btn-view.active, .btn-view:hover {
+            background: var(--yellow, #ffeb3b);
+            color: #000;
+            border-color: #000;
+        }
+
+        /* List view rows */
         .library-row {
             display: flex;
             align-items: center;
             gap: 22px;
-
             background: var(--paper, #161616);
             border: 5px solid #fff;
             box-shadow: 10px 10px 0 #000;
-
             padding: 20px;
-
-            transition:
-                    transform 0.18s ease,
-                    box-shadow 0.18s ease;
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
         }
-
         .library-row:hover {
             transform: translate(-5px, -5px);
             box-shadow: 16px 16px 0 #000;
         }
-
         .game-thumb {
-            width: 150px;
-            height: 95px;
-            object-fit: cover;
-
-            border: 4px solid #000;
-            box-shadow: 5px 5px 0 #000;
-
-            flex-shrink: 0;
+            width: 150px; height: 95px; object-fit: cover;
+            border: 4px solid #000; box-shadow: 5px 5px 0 #000; flex-shrink: 0;
         }
-
-        .library-info {
-            min-width: 0;
-        }
-
+        .library-info { min-width: 0; }
         .library-game-title {
-            font-family: 'Bangers', sans-serif;
-            font-size: 2rem;
-            letter-spacing: 1px;
-            color: #fff;
-            margin-bottom: 5px;
+            font-family: 'Bangers', sans-serif; font-size: 2rem;
+            letter-spacing: 1px; color: #fff; margin-bottom: 5px;
         }
-
         .library-purchase-date {
-            color: #aaa;
-            font-family: 'Comic Neue', sans-serif;
-            font-weight: 700;
-            margin-top: 10px;
+            color: #aaa; font-family: 'Comic Neue', sans-serif;
+            font-weight: 700; margin-top: 10px;
         }
-
         .refund-status {
-            display: inline-block;
-            margin-top: 10px;
-            padding: 5px 10px;
-
-            border: 3px solid #000;
-            box-shadow: 3px 3px 0 #000;
-
-            font-family: 'Bangers', sans-serif;
-            letter-spacing: 1px;
+            display: inline-block; margin-top: 10px; padding: 5px 10px;
+            border: 3px solid #000; box-shadow: 3px 3px 0 #000;
+            font-family: 'Bangers', sans-serif; letter-spacing: 1px;
         }
-
-        .refund-status.available {
-            background: var(--green, #33d17a);
-            color: #000;
-        }
-
-        .refund-status.expired {
-            background: #555;
-            color: #fff;
-        }
-
+        .refund-status.available { background: var(--green, #33d17a); color: #000; }
+        .refund-status.expired   { background: #555; color: #fff; }
         .library-actions {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-left: auto;
-            flex-shrink: 0;
+            display: flex; align-items: center; gap: 10px;
+            margin-left: auto; flex-shrink: 0;
         }
-
-        .refund-btn {
-            background: var(--red, #ff3b30);
-            color: #fff;
-        }
-
-        .refund-btn:hover {
-            background: #fff;
-            color: #000;
-        }
-
+        .refund-btn { background: var(--red, #ff3b30); color: #fff; }
+        .refund-btn:hover { background: #fff; color: #000; }
         .refund-btn:disabled {
-            background: #555;
-            color: #bbb;
-            cursor: not-allowed;
-            opacity: 1;
-            transform: none;
-            box-shadow: 6px 6px 0 #000;
+            background: #555; color: #bbb; cursor: not-allowed;
+            opacity: 1; transform: none; box-shadow: 6px 6px 0 #000;
         }
 
-        .library-empty {
-            text-align: center;
-            position: relative;
-            overflow: hidden;
+        /* Collection dropdown */
+        .col-dropdown-btn {
+            background: #222; border: 3px solid #fff; color: #fff;
+            font-family: 'Bangers', sans-serif; letter-spacing: 1px;
+            font-size: 1rem; padding: 6px 14px; box-shadow: 4px 4px 0 #000;
+            cursor: pointer; transition: background 0.15s, color 0.15s;
+        }
+        .col-dropdown-btn:hover, .col-dropdown-btn.show {
+            background: var(--yellow, #ffeb3b); color: #000; border-color: #000;
+        }
+        .col-dropdown-menu {
+            background: #1a1a1a; border: 3px solid #fff; border-radius: 0;
+            box-shadow: 6px 6px 0 #000; min-width: 200px;
+        }
+        .col-dropdown-menu .dropdown-item {
+            color: #fff; font-family: 'Comic Neue', sans-serif;
+            font-weight: 700; padding: 8px 16px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .col-dropdown-menu .dropdown-item:hover {
+            background: var(--yellow, #ffeb3b); color: #000;
+        }
+        .col-dropdown-menu .dropdown-item.in-col { color: var(--yellow, #ffeb3b); }
+        .col-dropdown-menu .dropdown-item.in-col:hover { color: #000; }
 
+        /* Empty state */
+        .library-empty {
+            text-align: center; position: relative; overflow: hidden;
             border: 5px solid #fff;
             box-shadow: 12px 12px 0 var(--yellow, #ffeb3b);
-
-            background: var(--paper, #161616);
-
-            padding: 70px 30px;
+            background: var(--paper, #161616); padding: 70px 30px;
         }
-
         .library-empty h2 {
-            font-family: 'Bangers', sans-serif;
-            font-size: 3rem;
-            letter-spacing: 2px;
-            color: var(--yellow, #ffeb3b);
+            font-family: 'Bangers', sans-serif; font-size: 3rem;
+            letter-spacing: 2px; color: var(--yellow, #ffeb3b);
             text-shadow: 3px 3px 0 #000;
         }
-
-        .library-empty p {
-            color: #ddd;
-            font-family: 'Comic Neue', sans-serif;
-            font-weight: 700;
+        .library-empty p { color: #ddd; font-family: 'Comic Neue', sans-serif; font-weight: 700; }
+        .halftone-corner {
+            position: absolute; top: -20px; right: -20px;
+            width: 120px; height: 120px;
+            background-image: radial-gradient(var(--yellow, #ffeb3b) 3px, transparent 3px);
+            background-size: 10px 10px; opacity: 0.4;
+            transform: rotate(20deg); pointer-events: none;
         }
 
-        .halftone-corner {
-            position: absolute;
-            top: -20px;
-            right: -20px;
+        /* Collections view */
+        .collection-card {
+            background: var(--paper, #161616);
+            border: 4px solid #fff; box-shadow: 8px 8px 0 #000;
+            margin-bottom: 28px; overflow: hidden;
+        }
+        .collection-header {
+            display: flex; align-items: center; gap: 14px;
+            padding: 14px 20px; cursor: pointer;
+            border-bottom: 3px solid #333;
+            user-select: none; transition: background 0.15s;
+        }
+        .collection-header:hover { background: rgba(255,255,255,0.04); }
+        .collection-accent { width: 8px; flex-shrink: 0; align-self: stretch; }
+        .collection-name {
+            font-family: 'Bangers', sans-serif; font-size: 1.6rem;
+            letter-spacing: 1px; color: #fff; flex-grow: 1;
+        }
+        .collection-desc { font-family: 'Comic Neue', sans-serif; color: #999; font-size: 0.85rem; }
+        .collection-count-badge {
+            background: var(--yellow, #ffeb3b); color: #000;
+            border: 3px solid #000; box-shadow: 3px 3px 0 #000;
+            padding: 3px 10px; font-family: 'Bangers', sans-serif;
+            font-size: 1rem; white-space: nowrap;
+        }
+        .collection-toggle-icon { color: #fff; font-size: 1.2rem; transition: transform 0.2s; }
+        .collection-card.collapsed .collection-toggle-icon { transform: rotate(-90deg); }
+        .collection-body { padding: 12px 20px 20px; }
+        .collection-card.collapsed .collection-body { display: none; }
 
-            width: 120px;
-            height: 120px;
+        .col-game-row {
+            display: flex; align-items: center; gap: 14px;
+            padding: 10px 0; border-bottom: 2px solid #2a2a2a;
+        }
+        .col-game-row:last-child { border-bottom: none; }
+        .col-game-thumb {
+            width: 80px; height: 50px; object-fit: cover;
+            border: 3px solid #000; box-shadow: 3px 3px 0 #000; flex-shrink: 0;
+        }
+        .col-game-title { font-family: 'Bangers', sans-serif; font-size: 1.3rem; color: #fff; flex-grow: 1; }
+        .collection-actions-row {
+            display: flex; gap: 8px; padding: 14px 20px 0;
+            border-top: 2px solid #2a2a2a; flex-wrap: wrap;
+        }
+        .ungrouped-card { border-color: #555; }
+        .ungrouped-card .collection-name { color: #aaa; }
 
-            background-image:
-                    radial-gradient(
-                            var(--yellow, #ffeb3b) 3px,
-                            transparent 3px
-                    );
+        /* Modals */
+        .comic-modal-content {
+            background: #161616; border: 5px solid #fff;
+            border-radius: 0; box-shadow: 12px 12px 0 #000;
+        }
+        .comic-modal-header { border-bottom: 4px solid #fff; }
+        .comic-modal-footer { border-top: 4px solid #fff; }
+        .comic-modal-title { font-family: 'Bangers', sans-serif; font-size: 2rem; letter-spacing: 2px; }
 
-            background-size: 10px 10px;
-            opacity: 0.4;
-
-            transform: rotate(20deg);
-            pointer-events: none;
+        /* Flash */
+        .flash-bar {
+            border: 3px solid #000; box-shadow: 5px 5px 0 #000;
+            font-family: 'Comic Neue', sans-serif; font-weight: 700; border-radius: 0;
         }
 
         @media (max-width: 900px) {
-
-            .library-row {
-                flex-wrap: wrap;
-            }
-
-            .library-actions {
-                width: 100%;
-                margin-left: 0;
-            }
-
-            .library-actions .btn,
-            .library-actions form {
-                flex: 1;
-            }
-
-            .library-actions .btn {
-                width: 100%;
-            }
+            .library-row { flex-wrap: wrap; }
+            .library-actions { width: 100%; margin-left: 0; }
+            .library-actions .btn, .library-actions form { flex: 1; }
+            .library-actions .btn { width: 100%; }
         }
-
         @media (max-width: 600px) {
-
-            .library-header {
-                align-items: flex-start;
-                flex-direction: column;
-            }
-
-            .game-thumb {
-                width: 100%;
-                height: 180px;
-            }
-
-            .library-row {
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-            .library-actions {
-                flex-direction: column;
-            }
-
-            .library-actions form {
-                width: 100%;
-            }
+            .library-header { align-items: flex-start; flex-direction: column; }
+            .game-thumb { width: 100%; height: 180px; }
+            .library-row { flex-direction: column; align-items: stretch; }
+            .library-actions { flex-direction: column; }
+            .library-actions form { width: 100%; }
         }
-
     </style>
 </head>
-
 <body>
 
 <nav class="container p-4 d-flex justify-content-between align-items-center">
-
     <div>
         <a href="{{ url_for('home') }}" class="NavBar">HOME</a>
         <a href="{{ url_for('store_front') }}" class="NavBar ms-3">STORE</a>
+        <a href="{{ url_for('library') }}" class="NavBar ms-3">LIBRARY</a>
     </div>
-
     {% if current_user.is_authenticated %}
-
     <div class="comic-auth-box">
-
-        <span class="comic-username">
-            {{ current_user.username }}
-        </span>
-
-        <a href="{{ url_for('logout') }}"
-           class="comic-logout-btn">
-            LOGOUT
-        </a>
-
+        <span class="comic-username">{{ current_user.username }}</span>
+        <a href="{{ url_for('logout') }}" class="comic-logout-btn">LOGOUT</a>
     </div>
-
     {% else %}
-
     <div class="comic-auth-box">
-
-        <a href="{{ url_for('login') }}"
-           class="comic-logout-btn"
-           style="background:#2196f3;">
-            LOGIN
-        </a>
-
-        <a href="{{ url_for('register') }}"
-           class="comic-logout-btn"
-           style="background:#ffeb3b; color:#000;">
-            REGISTER
-        </a>
-
+        <a href="{{ url_for('login') }}" class="comic-logout-btn" style="background:#2196f3;">LOGIN</a>
+        <a href="{{ url_for('register') }}" class="comic-logout-btn" style="background:#ffeb3b; color:#000;">REGISTER</a>
     </div>
-
     {% endif %}
-
 </nav>
 
 
 <div class="container py-5">
 
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="mb-4">
+        {% for category, message in messages %}
+        <div class="alert flash-bar
+            {% if category == 'error' %}alert-danger
+            {% elif category == 'success' %}alert-success
+            {% else %}alert-info{% endif %}
+            alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
     <div class="library-header">
-
         <div>
-            <h1 class="mb-1">
-                MY LIBRARY
-            </h1>
-
-            <div class="library-subtitle">
-                Your games. Your chaos. Your collection.
-            </div>
+            <h1 class="mb-1">MY LIBRARY</h1>
+            <div class="library-subtitle">Your games. Your chaos. Your collection.</div>
         </div>
+        <div class="library-count">{{ library_games|length }} GAMES</div>
+    </div>
 
-        <div class="library-count">
-            {{ library_games|length }} GAMES
-        </div>
+    {% if library_games %}
 
+    <div class="view-toggle-row">
+        <button class="btn-view active" id="btn-list-view">
+            <i class="bi bi-list-ul"></i> ALL GAMES
+        </button>
+        <button class="btn-view" id="btn-col-view">
+            <i class="bi bi-collection-fill"></i> COLLECTIONS
+            {% if collections %}<span style="font-size:0.85rem;">({{ collections|length }})</span>{% endif %}
+        </button>
     </div>
 
 
-    {% for item in library_games %}
-
-    {% set game = item.game %}
-    {% set purchase = item.purchase %}
-
-    <div class="library-row mb-5">
-
-        <img
-                src="{{ url_for('static', filename=game.image_path) }}"
-                class="game-thumb"
-                alt="{{ game.title }}"
-        >
-
-        <div class="library-info flex-grow-1">
-
-            <div class="library-game-title">
-                {{ game.title }}
+    <!-- LIST VIEW -->
+    <div id="list-view">
+        {% for item in library_games %}
+        {% set game = item.game %}
+        {% set purchase = item.purchase %}
+        <div class="library-row mb-5">
+            <img src="{{ url_for('static', filename=game.image_path) }}" class="game-thumb" alt="{{ game.title }}">
+            <div class="library-info flex-grow-1">
+                <div class="library-game-title">{{ game.title }}</div>
+                <span class="comic-badge-tag px-2 py-1">{{ game.genre }}</span>
+                <div class="library-purchase-date">
+                    <i class="bi bi-calendar-check"></i> Bought: {{ purchase.purchased_at.strftime('%d.%m.%Y') }}
+                </div>
+                {% if item.refund_available %}
+                <div class="refund-status available">
+                    <i class="bi bi-clock-fill"></i> REFUND AVAILABLE &mdash; {{ item.days_remaining }} DAYS LEFT
+                </div>
+                {% else %}
+                <div class="refund-status expired">
+                    <i class="bi bi-lock-fill"></i> REFUND WINDOW EXPIRED
+                </div>
+                {% endif %}
             </div>
 
-            <span class="comic-badge-tag px-2 py-1">
-                    {{ game.genre }}
-                </span>
+            <div class="library-actions">
+                <!-- Collection dropdown -->
+                <div class="dropdown">
+                    <button class="btn btn-comic col-dropdown-btn dropdown-toggle"
+                            data-bs-toggle="dropdown" aria-expanded="false" title="Add to Collection">
+                        <i class="bi bi-collection"></i>
+                    </button>
+                    <ul class="dropdown-menu col-dropdown-menu">
+                        <li><span class="dropdown-item disabled" style="font-size:0.8rem;color:#888;">COLLECTIONS</span></li>
+                        {% if collections %}
+                        {% for col in collections %}
+                        {% set in_col = game.id in col_game_ids_map.get(col.id, set()) %}
+                        <li>
+                            <button class="dropdown-item col-toggle-btn {% if in_col %}in-col{% endif %}"
+                                    data-collection-id="{{ col.id }}"
+                                    data-game-id="{{ game.id }}">
+                                <i class="bi {% if in_col %}bi-check-circle-fill{% else %}bi-circle{% endif %} col-icon"></i>
+                                {{ col.name }}
+                            </button>
+                        </li>
+                        {% endfor %}
+                        <li><hr class="dropdown-divider" style="border-color:#444;"></li>
+                        {% endif %}
+                        <li>
+                            <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#newCollectionModal">
+                                <i class="bi bi-plus-circle"></i> New Collection
+                            </button>
+                        </li>
+                    </ul>
+                </div>
 
-            <div class="library-purchase-date">
-
-                <i class="bi bi-calendar-check"></i>
-
-                Bought:
-                {{ purchase.purchased_at.strftime('%d.%m.%Y') }}
-
-            </div>
-
-
-            {% if item.refund_available %}
-
-            <div class="refund-status available">
-
-                <i class="bi bi-clock-fill"></i>
-
-                REFUND AVAILABLE —
-                {{ item.days_remaining }} DAYS LEFT
-
-            </div>
-
-            {% else %}
-
-            <div class="refund-status expired">
-
-                <i class="bi bi-lock-fill"></i>
-
-                REFUND WINDOW EXPIRED
-
-            </div>
-
-            {% endif %}
-
-        </div>
-
-
-        <div class="library-actions">
-
-            <a
-                    href="{{ url_for('game_detail', game_id=game.id) }}"
-                    class="btn btn-light btn-comic"
-            >
-                <i class="bi bi-eye-fill"></i>
-                VIEW
-            </a>
-
-
-            <a
-                    href="{{ url_for('static', filename=game.download_path) }}"
-                    class="btn btn-success btn-comic"
-                    download
-            >
-                <i class="bi bi-download"></i>
-                DOWNLOAD
-            </a>
-
-
-            {% if item.refund_available %}
-
-            <form
-                    action="{{ url_for('refund_purchase', game_id=game.id) }}"
-                    method="POST"
-                    class="refund-form"
-            >
-
-                <button
-                        type="submit"
-                        class="btn btn-comic refund-btn"
-                >
-                    <i class="bi bi-arrow-counterclockwise"></i>
-                    REFUND
+                <a href="{{ url_for('game_detail', game_id=game.id) }}" class="btn btn-light btn-comic">
+                    <i class="bi bi-eye-fill"></i> VIEW
+                </a>
+                <a href="{{ url_for('static', filename=game.download_path) }}" class="btn btn-success btn-comic" download>
+                    <i class="bi bi-download"></i> DOWNLOAD
+                </a>
+                {% if item.refund_available %}
+                <form action="{{ url_for('refund_purchase', game_id=game.id) }}" method="POST" class="refund-form">
+                    <button type="submit" class="btn btn-comic refund-btn">
+                        <i class="bi bi-arrow-counterclockwise"></i> REFUND
+                    </button>
+                </form>
+                {% else %}
+                <button type="button" class="btn btn-comic" disabled>
+                    <i class="bi bi-lock-fill"></i> EXPIRED
                 </button>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div><!-- /list-view -->
 
-            </form>
 
-            {% else %}
+    <!-- COLLECTIONS VIEW -->
+    <div id="collections-view" style="display:none;">
 
-            <button
-                    type="button"
-                    class="btn btn-comic"
-                    disabled
-            >
-                <i class="bi bi-lock-fill"></i>
-                EXPIRED
+        <div class="mb-4">
+            <button class="btn btn-comic"
+                    style="background:var(--yellow,#ffeb3b);color:#000;border:3px solid #000;box-shadow:5px 5px 0 #000;"
+                    data-bs-toggle="modal" data-bs-target="#newCollectionModal">
+                <i class="bi bi-plus-circle-fill"></i> NEW COLLECTION
             </button>
-
-            {% endif %}
-
         </div>
 
-    </div>
+        {% if not collections %}
+        <div class="library-empty mt-4">
+            <div class="halftone-corner"></div>
+            <h2>NO COLLECTIONS YET!</h2>
+            <p class="fs-5 mb-4">Create your first collection to organise your library.</p>
+        </div>
+        {% else %}
+
+        {% for col in collections %}
+        {% set col_games = col.games | map(attribute='game') | list %}
+        <div class="collection-card" id="col-card-{{ col.id }}">
+            <div style="display:flex;">
+                <div class="collection-accent" style="background:{{ col.color }};"></div>
+                <div style="flex:1;">
+                    <div class="collection-header">
+                        <span class="collection-name">{{ col.name }}</span>
+                        {% if col.description %}
+                        <span class="collection-desc">{{ col.description }}</span>
+                        {% endif %}
+                        <span class="collection-count-badge">{{ col.games|length }} GAMES</span>
+                        <i class="bi bi-chevron-down collection-toggle-icon"></i>
+                    </div>
+                    <div class="collection-body">
+                        {% if col_games %}
+                        {% for game in col_games %}
+                        <div class="col-game-row" id="col-row-{{ col.id }}-{{ game.id }}">
+                            <img src="{{ url_for('static', filename=game.image_path) }}" class="col-game-thumb" alt="{{ game.title }}">
+                            <span class="col-game-title">{{ game.title }}</span>
+                            <span class="comic-badge-tag px-2 py-1" style="font-size:0.75rem;">{{ game.genre }}</span>
+                            <a href="{{ url_for('game_detail', game_id=game.id) }}" class="btn btn-sm btn-comic btn-light" title="View">
+                                <i class="bi bi-eye-fill"></i>
+                            </a>
+                            <button class="btn btn-sm btn-comic col-toggle-btn"
+                                    style="background:#ff3b30;color:#fff;border-color:#000;"
+                                    data-collection-id="{{ col.id }}"
+                                    data-game-id="{{ game.id }}"
+                                    title="Remove from collection">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                        {% endfor %}
+                        {% else %}
+                        <p style="color:#666;font-family:'Comic Neue',sans-serif;font-weight:700;margin:12px 0;">
+                            No games yet. Add them from the <strong>ALL GAMES</strong> view.
+                        </p>
+                        {% endif %}
+
+                        <div class="collection-actions-row mt-3">
+                            <button class="btn btn-sm btn-comic"
+                                    style="background:#222;border:2px solid #fff;color:#fff;"
+                                    data-bs-toggle="modal" data-bs-target="#renameModal-{{ col.id }}">
+                                <i class="bi bi-pencil-fill"></i> RENAME
+                            </button>
+                            <button class="btn btn-sm btn-comic"
+                                    style="background:#ff3b30;color:#fff;border:2px solid #000;"
+                                    data-bs-toggle="modal" data-bs-target="#deleteModal-{{ col.id }}">
+                                <i class="bi bi-trash-fill"></i> DELETE
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rename Modal -->
+        <div class="modal fade" id="renameModal-{{ col.id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content comic-modal-content">
+                    <form action="{{ url_for('rename_collection', collection_id=col.id) }}" method="POST">
+                        <div class="modal-header comic-modal-header">
+                            <h5 class="modal-title comic-modal-title" style="color:var(--yellow,#ffeb3b);">RENAME COLLECTION</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <input type="text" name="name" value="{{ col.name }}" class="form-control"
+                                   maxlength="80" required
+                                   style="border:4px solid #000;border-radius:0;box-shadow:4px 4px 0 #000;font-weight:900;">
+                        </div>
+                        <div class="modal-footer comic-modal-footer">
+                            <button type="button" class="btn btn-secondary btn-comic" data-bs-dismiss="modal">CANCEL</button>
+                            <button type="submit" class="btn btn-comic" style="background:var(--yellow,#ffeb3b);color:#000;">SAVE</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delete Modal -->
+        <div class="modal fade" id="deleteModal-{{ col.id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content comic-modal-content">
+                    <div class="modal-header comic-modal-header">
+                        <h5 class="modal-title comic-modal-title" style="color:#ff3b30;">&#9888; DELETE COLLECTION</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body" style="font-family:'Comic Neue',sans-serif;font-weight:700;">
+                        <p>Delete <strong style="color:var(--yellow,#ffeb3b);">{{ col.name }}</strong>?</p>
+                        <p class="text-danger">This only removes the collection &mdash; your games stay in the library.</p>
+                    </div>
+                    <div class="modal-footer comic-modal-footer">
+                        <button type="button" class="btn btn-secondary btn-comic" data-bs-dismiss="modal">CANCEL</button>
+                        <form action="{{ url_for('delete_collection', collection_id=col.id) }}" method="POST" style="display:inline;">
+                            <button type="submit" class="btn btn-danger btn-comic">
+                                <i class="bi bi-trash-fill"></i> DELETE
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+
+        <!-- Ungrouped section -->
+        {% set ungrouped = [] %}
+        {% for item in library_games %}
+            {% if item.game.id not in assigned_game_ids %}
+                {% set _ = ungrouped.append(item) %}
+            {% endif %}
+        {% endfor %}
+        {% if ungrouped %}
+        <div class="collection-card ungrouped-card" id="ungrouped-card">
+            <div style="display:flex;">
+                <div class="collection-accent" style="background:#555;"></div>
+                <div style="flex:1;">
+                    <div class="collection-header">
+                        <span class="collection-name" style="color:#aaa;">
+                            <i class="bi bi-inbox"></i> UNGROUPED
+                        </span>
+                        <span class="collection-count-badge" style="background:#555;color:#fff;border-color:#333;">
+                            {{ ungrouped|length }} GAMES
+                        </span>
+                        <i class="bi bi-chevron-down collection-toggle-icon"></i>
+                    </div>
+                    <div class="collection-body">
+                        {% for item in ungrouped %}
+                        {% set game = item.game %}
+                        <div class="col-game-row">
+                            <img src="{{ url_for('static', filename=game.image_path) }}" class="col-game-thumb" alt="{{ game.title }}">
+                            <span class="col-game-title">{{ game.title }}</span>
+                            <span class="comic-badge-tag px-2 py-1" style="font-size:0.75rem;">{{ game.genre }}</span>
+                            <a href="{{ url_for('game_detail', game_id=game.id) }}" class="btn btn-sm btn-comic btn-light" title="View">
+                                <i class="bi bi-eye-fill"></i>
+                            </a>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-comic col-dropdown-btn dropdown-toggle"
+                                        data-bs-toggle="dropdown" title="Add to Collection" style="padding:4px 10px;">
+                                    <i class="bi bi-collection-fill"></i>
+                                </button>
+                                <ul class="dropdown-menu col-dropdown-menu">
+                                    {% for col in collections %}
+                                    <li>
+                                        <button class="dropdown-item col-toggle-btn"
+                                                data-collection-id="{{ col.id }}"
+                                                data-game-id="{{ game.id }}">
+                                            <i class="bi bi-circle col-icon"></i> {{ col.name }}
+                                        </button>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% endif %}<!-- /if collections -->
+    </div><!-- /collections-view -->
 
     {% else %}
 
     <div class="library-empty">
-
         <div class="halftone-corner"></div>
-
-        <h2>
-            LIBRARY EMPTY!
-        </h2>
-
-        <p class="fs-5 mb-4">
-            Kein einziges Game? Das ist ja tragisch.
-        </p>
-
-        <a
-                href="{{ url_for('store_front') }}"
-                class="comic-btn-store"
-                style="max-width:300px; margin:auto;"
-        >
+        <h2>LIBRARY EMPTY!</h2>
+        <p class="fs-5 mb-4">Kein einziges Game? Das ist ja tragisch.</p>
+        <a href="{{ url_for('store_front') }}" class="comic-btn-store" style="max-width:300px;margin:auto;">
             GO TO STORE
         </a>
-
     </div>
 
-    {% endfor %}
+    {% endif %}
 
+</div><!-- /container -->
+
+
+<!-- NEW COLLECTION MODAL -->
+<div class="modal fade" id="newCollectionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content comic-modal-content">
+            <form action="{{ url_for('create_collection') }}" method="POST">
+                <div class="modal-header comic-modal-header">
+                    <h5 class="modal-title comic-modal-title" style="color:var(--yellow,#ffeb3b);">
+                        <i class="bi bi-plus-circle-fill"></i> NEW COLLECTION
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label fw-bold" style="font-family:'Comic Neue',sans-serif;">Collection Name *</label>
+                    <input type="text" name="name" placeholder="e.g. Favourites, Later, Action..."
+                           class="form-control mb-3" maxlength="80" required
+                           style="border:4px solid #000;border-radius:0;box-shadow:4px 4px 0 #000;font-weight:900;">
+                    <label class="form-label fw-bold" style="font-family:'Comic Neue',sans-serif;">
+                        Description <span style="color:#888;">(optional)</span>
+                    </label>
+                    <textarea name="description" placeholder="What's in this collection?"
+                              class="form-control mb-3" maxlength="250" rows="2"
+                              style="border:4px solid #000;border-radius:0;box-shadow:4px 4px 0 #000;font-weight:700;resize:none;"></textarea>
+                    <div class="d-flex align-items-center gap-3">
+                        <label class="form-label fw-bold mb-0" style="font-family:'Comic Neue',sans-serif;">Accent Colour:</label>
+                        <input type="color" name="color" value="#ffeb3b"
+                               style="width:48px;height:40px;border:3px solid #000;box-shadow:3px 3px 0 #000;cursor:pointer;padding:2px;">
+                    </div>
+                </div>
+                <div class="modal-footer comic-modal-footer">
+                    <button type="button" class="btn btn-secondary btn-comic" data-bs-dismiss="modal">CANCEL</button>
+                    <button type="submit" class="btn btn-comic"
+                            style="background:var(--yellow,#ffeb3b);color:#000;border:3px solid #000;">
+                        <i class="bi bi-plus-circle-fill"></i> CREATE
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
 
-<!-- HARDER REFUND CONFIRMATION -->
-<div
-        class="modal fade"
-        id="refundModal"
-        tabindex="-1"
-        aria-hidden="true"
->
-
+<!-- REFUND MODAL -->
+<div class="modal fade" id="refundModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-
-        <div
-                class="modal-content"
-                style="
-                background:#161616;
-                border:5px solid #fff;
-                border-radius:0;
-                box-shadow:12px 12px 0 #000;
-            "
-        >
-
-            <div class="modal-header"
-                 style="border-bottom:4px solid #fff;">
-
-                <h5
-                        class="modal-title"
-                        style="
-                        font-family:'Bangers', sans-serif;
-                        font-size:2rem;
-                        color:#ff3b30;
-                        letter-spacing:2px;
-                    "
-                >
-                    ⚠ SERIOUS REFUND
+        <div class="modal-content comic-modal-content">
+            <div class="modal-header comic-modal-header">
+                <h5 class="modal-title comic-modal-title" style="color:#ff3b30;letter-spacing:2px;">
+                    &#9888; SERIOUS REFUND
                 </h5>
-
-                <button
-                        type="button"
-                        class="btn-close btn-close-white"
-                        data-bs-dismiss="modal"
-                ></button>
-
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-
-
             <div class="modal-body">
-
-                <p
-                        style="
-                        font-family:'Comic Neue', sans-serif;
-                        font-weight:700;
-                        font-size:1.1rem;
-                    "
-                >
-                    You are about to refund:
-                </p>
-
-                <div
-                        id="refundGameName"
-                        style="
-                        background:#ffeb3b;
-                        color:#000;
-                        border:4px solid #000;
-                        box-shadow:5px 5px 0 #000;
-                        padding:12px;
-                        font-family:'Bangers', sans-serif;
-                        font-size:1.7rem;
-                        letter-spacing:1px;
-                        margin-bottom:25px;
-                    "
-                ></div>
-
-                <p>
-                    This will remove the game from your library
-                    after the refund is processed.
-                </p>
-
-                <p class="text-danger fw-bold">
-                    This action cannot simply be undone.
-                </p>
-
-                <label
-                        for="refundConfirmInput"
-                        class="form-label fw-bold"
-                >
+                <p style="font-family:'Comic Neue',sans-serif;font-weight:700;font-size:1.1rem;">You are about to refund:</p>
+                <div id="refundGameName"
+                     style="background:#ffeb3b;color:#000;border:4px solid #000;box-shadow:5px 5px 0 #000;padding:12px;font-family:'Bangers',sans-serif;font-size:1.7rem;letter-spacing:1px;margin-bottom:25px;"></div>
+                <p>This will remove the game from your library after the refund is processed.</p>
+                <p class="text-danger fw-bold">This action cannot simply be undone.</p>
+                <label for="refundConfirmInput" class="form-label fw-bold">
                     Type <strong>REFUND</strong> to continue:
                 </label>
-
-                <input
-                        type="text"
-                        id="refundConfirmInput"
-                        class="form-control"
-                        autocomplete="off"
-                        style="
-                        border:4px solid #000;
-                        border-radius:0;
-                        box-shadow:4px 4px 0 #000;
-                        font-weight:900;
-                    "
-                >
-
+                <input type="text" id="refundConfirmInput" class="form-control" autocomplete="off"
+                       style="border:4px solid #000;border-radius:0;box-shadow:4px 4px 0 #000;font-weight:900;">
             </div>
-
-
-            <div
-                    class="modal-footer"
-                    style="border-top:4px solid #fff;"
-            >
-
-                <button
-                        type="button"
-                        class="btn btn-secondary btn-comic"
-                        data-bs-dismiss="modal"
-                >
-                    CANCEL
+            <div class="modal-footer comic-modal-footer">
+                <button type="button" class="btn btn-secondary btn-comic" data-bs-dismiss="modal">CANCEL</button>
+                <button type="button" id="confirmRefundBtn" class="btn btn-danger btn-comic" disabled>
+                    <i class="bi bi-arrow-counterclockwise"></i> CONFIRM REFUND
                 </button>
-
-                <button
-                        type="button"
-                        id="confirmRefundBtn"
-                        class="btn btn-danger btn-comic"
-                        disabled
-                >
-                    <i class="bi bi-arrow-counterclockwise"></i>
-                    CONFIRM REFUND
-                </button>
-
             </div>
-
         </div>
-
     </div>
-
 </div>
 
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
-
 <script>
+document.addEventListener("DOMContentLoaded", () => {
 
-    document.addEventListener("DOMContentLoaded", () => {
+    /* View toggle */
+    const btnList  = document.getElementById("btn-list-view");
+    const btnCol   = document.getElementById("btn-col-view");
+    const listView = document.getElementById("list-view");
+    const colView  = document.getElementById("collections-view");
+    const KEY      = "sqush_library_view";
 
-        let currentRefundForm = null;
+    function switchView(v) {
+        if (v === "collections") {
+            if (listView) listView.style.display = "none";
+            if (colView)  colView.style.display  = "block";
+            if (btnList)  btnList.classList.remove("active");
+            if (btnCol)   btnCol.classList.add("active");
+        } else {
+            if (colView)  colView.style.display  = "none";
+            if (listView) listView.style.display = "block";
+            if (btnCol)   btnCol.classList.remove("active");
+            if (btnList)  btnList.classList.add("active");
+        }
+        localStorage.setItem(KEY, v);
+    }
 
-        const refundModalElement =
-            document.getElementById("refundModal");
+    if (localStorage.getItem(KEY) === "collections") switchView("collections");
+    if (btnList) btnList.addEventListener("click", () => switchView("list"));
+    if (btnCol)  btnCol.addEventListener("click",  () => switchView("collections"));
 
-        const refundModal =
-            new bootstrap.Modal(refundModalElement);
-
-        const refundInput =
-            document.getElementById("refundConfirmInput");
-
-        const confirmRefundBtn =
-            document.getElementById("confirmRefundBtn");
-
-        const refundGameName =
-            document.getElementById("refundGameName");
-
-
-        document.querySelectorAll(".refund-form").forEach(form => {
-
-            form.addEventListener("submit", (event) => {
-
-                event.preventDefault();
-
-                currentRefundForm = form;
-
-                const row =
-                    form.closest(".library-row");
-
-                const title =
-                    row.querySelector(".library-game-title").textContent.trim();
-
-                refundGameName.textContent = title;
-
-                refundInput.value = "";
-
-                confirmRefundBtn.disabled = true;
-
-                refundModal.show();
-
-            });
-
-        });
-
-
-        refundInput.addEventListener("input", () => {
-
-            const valid =
-                refundInput.value.trim().toUpperCase() === "REFUND";
-
-            confirmRefundBtn.disabled = !valid;
-
-        });
-
-
-        confirmRefundBtn.addEventListener("click", () => {
-
-            if (!currentRefundForm) return;
-
-            if (
-                refundInput.value.trim().toUpperCase() !== "REFUND"
-            ) {
-                return;
-            }
-
-            currentRefundForm.submit();
-
-        });
-
+    /* Collection card collapse */
+    document.querySelectorAll(".collection-header").forEach(h => {
+        h.addEventListener("click", () => h.closest(".collection-card").classList.toggle("collapsed"));
     });
 
-</script>
+    /* Add/remove game from collection (AJAX) */
+    document.querySelectorAll(".col-toggle-btn").forEach(btn => {
+        btn.addEventListener("click", async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const colId  = btn.dataset.collectionId;
+            const gameId = btn.dataset.gameId;
+            try {
+                const resp = await fetch(`/collections/${colId}/toggle/${gameId}`, { method: "POST" });
+                if (!resp.ok) return;
+                const data = await resp.json();
 
+                if (data.action === "added") {
+                    syncAllColBtns(colId, gameId, true);
+                } else {
+                    syncAllColBtns(colId, gameId, false);
+                    const row = document.getElementById(`col-row-${colId}-${gameId}`);
+                    if (row) { row.style.opacity = "0"; setTimeout(() => row.remove(), 300); }
+                }
+                updateCountBadge(colId);
+            } catch(err) { console.error(err); }
+        });
+    });
+
+    function updateColBtn(btn, inCol) {
+        const icon = btn.querySelector(".col-icon");
+        if (inCol) {
+            btn.classList.add("in-col");
+            if (icon) { icon.classList.remove("bi-circle"); icon.classList.add("bi-check-circle-fill"); }
+        } else {
+            btn.classList.remove("in-col");
+            if (icon) { icon.classList.remove("bi-check-circle-fill"); icon.classList.add("bi-circle"); }
+        }
+    }
+    function syncAllColBtns(colId, gameId, inCol) {
+        document.querySelectorAll(`.col-toggle-btn[data-collection-id="${colId}"][data-game-id="${gameId}"]`)
+                .forEach(b => updateColBtn(b, inCol));
+    }
+    function updateCountBadge(colId) {
+        const card = document.getElementById(`col-card-${colId}`);
+        if (!card) return;
+        const badge = card.querySelector(".collection-count-badge");
+        const rows  = card.querySelectorAll(".col-game-row");
+        if (badge) badge.textContent = `${rows.length} GAMES`;
+    }
+
+    /* Refund modal */
+    let currentRefundForm = null;
+    const refEl  = document.getElementById("refundModal");
+    const refMod = refEl ? new bootstrap.Modal(refEl) : null;
+    const refIn  = document.getElementById("refundConfirmInput");
+    const refBtn = document.getElementById("confirmRefundBtn");
+    const refNm  = document.getElementById("refundGameName");
+
+    document.querySelectorAll(".refund-form").forEach(form => {
+        form.addEventListener("submit", e => {
+            e.preventDefault();
+            currentRefundForm = form;
+            const title = form.closest(".library-row").querySelector(".library-game-title").textContent.trim();
+            refNm.textContent = title;
+            refIn.value = "";
+            refBtn.disabled = true;
+            refMod.show();
+        });
+    });
+    if (refIn) refIn.addEventListener("input", () => { refBtn.disabled = refIn.value.trim().toUpperCase() !== "REFUND"; });
+    if (refBtn) refBtn.addEventListener("click", () => {
+        if (currentRefundForm && refIn.value.trim().toUpperCase() === "REFUND") currentRefundForm.submit();
+    });
+});
+</script>
 <script>window.squshCartToken = "{{ cart_token }}";</script>
 </body>
 </html>
