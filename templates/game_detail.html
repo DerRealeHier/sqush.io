@@ -44,6 +44,7 @@
     <div>
         <a href="{{ url_for('home') }}" class="NavBar">HOME</a>
         <a href="{{ url_for('store_front') }}" class="NavBar ms-3">STORE</a>
+        <a class="NavBar ms-3" href="{{ url_for('library') }}">LIBRARY</a>
         <a href="/cart" class="NavBar ms-3">
             CART 
             <span class="badge bg-danger cart-count-badge {% if cart_count == 0 %}d-none{% endif %}">{{ cart_count }}</span>
