@@ -537,6 +537,41 @@ class BundleCollaborator(db.Model):
     )
 
 
+
+# Library Collection models
+class Collection(db.Model):
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    name = db.Column(db.String(80), nullable=False)
+    description = db.Column(db.String(250), nullable=True)
+    color = db.Column(db.String(7), default="#ffeb3b")  # Hex accent colour shown as left border
+    is_hidden = db.Column(db.Boolean, default=False)    # user can hide a collection (including ungrouped trick)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    user = db.relationship("User", backref="collections")
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "name", name="unique_collection_per_user"),
+    )
+
+
+class CollectionGame(db.Model):
+
+    id = db.Column(db.Integer, primary_key=True)
+    collection_id = db.Column(db.Integer, db.ForeignKey("collection.id"), nullable=False)
+    game_id = db.Column(db.Integer, db.ForeignKey("game.id"), nullable=False)
+    added_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    collection = db.relationship(
+        "Collection",
+        backref=db.backref("games", cascade="all, delete-orphan", lazy=True)
+    )
+    game = db.relationship("Game", backref="collection_entries")
+    __table_args__ = (
+        db.UniqueConstraint("collection_id", "game_id", name="unique_collection_game"),
+    )
+
+
 def bundle_role(bundle, user):
     if bundle.owner_id == user.id:
         return "owner"
@@ -2215,10 +2250,110 @@ def library():
             "days_remaining": days_remaining
         })
 
+    # Build collections context
+    collections = Collection.query.filter_by(user_id=current_user.id).order_by(Collection.created_at).all()
+
+    # Set of game IDs that belong to at least one collection (for "ungrouped" detection)
+    assigned_game_ids = {
+        cg.game_id
+        for col in collections
+        for cg in col.games
+    }
+
+    # Per-collection set of game IDs for the dropdown checkmarks in the template
+    col_game_ids_map = {
+        col.id: {cg.game_id for cg in col.games}
+        for col in collections
+    }
+
     return render_template(
         "library.html",
-        library_games=library_games
+        library_games=library_games,
+        collections=collections,
+        assigned_game_ids=assigned_game_ids,
+        col_game_ids_map=col_game_ids_map,
     )
+
+
+# ---------------------------------------------------------------------------
+# Library Collection routes
+# ---------------------------------------------------------------------------
+
+@app.route("/collections/create", methods=["POST"])
+@login_required
+def create_collection():
+    name = request.form.get("name", "").strip()
+    description = request.form.get("description", "").strip()
+    color = request.form.get("color", "#ffeb3b")
+    if not name:
+        flash("Collection name cannot be empty.", "error")
+        return redirect(url_for("library"))
+    # Validate hex color input
+    if not (len(color) == 7 and color.startswith("#")):
+        color = "#ffeb3b"
+    existing = Collection.query.filter_by(user_id=current_user.id, name=name).first()
+    if existing:
+        flash(f'Du hast bereits eine Collection namens "{name}".', "error")
+        return redirect(url_for("library"))
+    col = Collection(
+        user_id=current_user.id,
+        name=name,
+        description=description or None,
+        color=color,
+    )
+    db.session.add(col)
+    db.session.commit()
+    flash(f'Collection "{name}" erstellt!', "success")
+    return redirect(url_for("library"))
+
+
+@app.route("/collections/<int:collection_id>/delete", methods=["POST"])
+@login_required
+def delete_collection(collection_id):
+    col = Collection.query.filter_by(id=collection_id, user_id=current_user.id).first_or_404()
+    name = col.name
+    db.session.delete(col)
+    db.session.commit()
+    flash(f'Collection "{name}" gelöscht.', "success")
+    return redirect(url_for("library"))
+
+
+@app.route("/collections/<int:collection_id>/rename", methods=["POST"])
+@login_required
+def rename_collection(collection_id):
+    col = Collection.query.filter_by(id=collection_id, user_id=current_user.id).first_or_404()
+    new_name = request.form.get("name", "").strip()
+    if not new_name:
+        flash("Name darf nicht leer sein.", "error")
+        return redirect(url_for("library"))
+    existing = Collection.query.filter_by(user_id=current_user.id, name=new_name).first()
+    if existing and existing.id != col.id:
+        flash(f'Du hast bereits eine Collection namens "{new_name}".', "error")
+        return redirect(url_for("library"))
+    col.name = new_name
+    db.session.commit()
+    return redirect(url_for("library"))
+
+
+@app.route("/collections/<int:collection_id>/toggle/<int:game_id>", methods=["POST"])
+@login_required
+def toggle_game_collection(collection_id, game_id):
+
+    col = Collection.query.filter_by(id=collection_id, user_id=current_user.id).first_or_404()
+    entry = CollectionGame.query.filter_by(collection_id=collection_id, game_id=game_id).first()
+    if entry:
+        db.session.delete(entry)
+        db.session.commit()
+        return jsonify(success=True, action="removed", collection_id=collection_id, game_id=game_id)
+    else:
+        # Verify the game is actually in the user's library. Hope so
+        owns = Purchase.query.filter_by(user_id=current_user.id, game_id=game_id, refunded=False).first()
+        if not owns:
+            return jsonify(error="Game not in library"), 403
+        db.session.add(CollectionGame(collection_id=collection_id, game_id=game_id))
+        db.session.commit()
+        return jsonify(success=True, action="added", collection_id=collection_id, game_id=game_id)
+
 
 @app.route("/community", methods=["GET","POST"])
 def community():
