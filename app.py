@@ -140,21 +140,36 @@ def inject_global_data():
             data["unread_count"] = 0
 
         try:
-            wishlist_ids = {w.game_id for w in Wishlist.query.filter_by(user_id=current_user.id).all()}
+            wishlist_ids = {
+                row[0]
+                for row in db.session.query(Wishlist.game_id)
+                .filter_by(user_id=current_user.id)
+                .all()
+            }
             data["wishlist_ids"] = wishlist_ids
         except Exception as e:
             print(f"DEBUG: Wishlist Fehler: {e}")
             data["wishlist_ids"] = set()
 
         try:
-            following_game_ids = {f.game_id for f in GameFollow.query.filter_by(user_id=current_user.id).all()}
+            following_game_ids = {
+                row[0]
+                for row in db.session.query(GameFollow.game_id)
+                .filter_by(user_id=current_user.id)
+                .all()
+            }
             data["following_game_ids"] = following_game_ids
         except Exception as e:
             print(f"DEBUG: GameFollow Fehler: {e}")
             data["following_game_ids"] = set()
 
         try:
-            cart_ids = {c.game_id for c in CartItem.query.filter_by(user_id=current_user.id).all()}
+            cart_ids = {
+                row[0]
+                for row in db.session.query(CartItem.game_id)
+                .filter_by(user_id=current_user.id)
+                .all()
+            }
             data["cart_ids"] = cart_ids
             data["cart_count"] = len(cart_ids)
         except Exception as e:
@@ -230,10 +245,10 @@ class User(UserMixin, db.Model):
 
 class Notification(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False) #Who needs Info?
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True) #Who needs Info?
     message = db.Column(db.String(250), nullable=False)
     type = db.Column(db.String(50))
-    is_read = db.Column(db.Boolean, default = False)
+    is_read = db.Column(db.Boolean, default=False, index=True)
     # yeah it wasnt aware of time-zones before. Happens xD
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     user = db.relationship("User" , backref="notifications")
@@ -305,8 +320,8 @@ class UpdateVote(db.Model):
 class GameFollow(db.Model):
     # lets a user get notified whenever the game they follow ships a new GameUpdate
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    game_id = db.Column(db.Integer, db.ForeignKey("game.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    game_id = db.Column(db.Integer, db.ForeignKey("game.id"), nullable=False, index=True)
     followed_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = db.relationship("User", backref="followed_games")
@@ -315,8 +330,8 @@ class GameFollow(db.Model):
 
 class Purchase(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    game_id = db.Column(db.Integer, db.ForeignKey("game.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    game_id = db.Column(db.Integer, db.ForeignKey("game.id"), nullable=False, index=True)
     price_paid = db.Column(db.Float, nullable=True)  # what it actually cost at purchase time
     purchased_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -333,8 +348,8 @@ class Purchase(db.Model):
 
 class Wishlist(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    game_id = db.Column(db.Integer, db.ForeignKey("game.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    game_id = db.Column(db.Integer, db.ForeignKey("game.id"), nullable=False, index=True)
     added_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     game = db.relationship("Game", backref="wishlisted_by")
     user = db.relationship("User", backref="wishlist_entries")
@@ -342,10 +357,10 @@ class Wishlist(db.Model):
     __table_args__ = (db.UniqueConstraint('user_id', 'game_id', name='unique_wishlist'),)
 
 class CartItem(db.Model):
-    # Guest use the Flas session
+    # Guest use the Flask session
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    game_id = db.Column(db.Integer, db.ForeignKey("game.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    game_id = db.Column(db.Integer, db.ForeignKey("game.id"), nullable=False, index=True)
     added_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     game = db.relationship("Game", backref="cart_entries")
@@ -676,11 +691,16 @@ def save_game_file(file, folder=None):
     return f"{relative_folder}/{filename}", None
 
 def calculate_game_revenue(game):
-    # yea you aint getting the old money back.
-    total = 0
-    for p in game.purchases:
-        total += p.price_paid if p.price_paid is not None else calculate_display_price(game)
-    return total
+    # SQL SUM is orders of magnitude faster than loading every Purchase object into Python.
+    # NOTE: purchases where price_paid is NULL (legacy rows) are excluded from the sum;
+    # in practice price_paid is always set at purchase time.
+    from sqlalchemy import func as _sqlfunc
+    result = db.session.query(_sqlfunc.sum(Purchase.price_paid)).filter(
+        Purchase.game_id == game.id,
+        Purchase.refunded == False,
+        Purchase.price_paid != None,
+    ).scalar()
+    return result or 0.0
 
 def connected_login_methods_count(user):
     # used to stop someone from unlinking their LAST way of getting into the account
@@ -712,14 +732,18 @@ def _get_tag_set(game):
     return {t.strip().lower() for t in game.tags.split(",") if t.strip()}
 
 def get_popular_games(exclude_ids=None, limit=6):
-    # Fallback for empty libraries or when nothing else scores
+    # Use SQL ORDER BY + LIMIT instead of loading all games into Python and sorting there.
+    from sqlalchemy import func as _sqlfunc
     exclude_ids = exclude_ids or set()
-    query = Game.query
+    query = (
+        db.session.query(Game)
+        .outerjoin(Purchase, (Purchase.game_id == Game.id) & (Purchase.refunded == False))
+        .group_by(Game.id)
+        .order_by(_sqlfunc.count(Purchase.id).desc())
+    )
     if exclude_ids:
         query = query.filter(~Game.id.in_(exclude_ids))
-    candidates = query.all()
-    candidates.sort(key=lambda g: len(g.purchases), reverse=True)
-    return candidates[:limit]
+    return query.limit(limit).all()
 
 
 def get_recommended_games(user, limit=6):
@@ -777,8 +801,8 @@ def get_recommended_games(user, limit=6):
     }
 
     wishlisters_by_game = {}
-    for w in Wishlist.query.all():
-        wishlisters_by_game.setdefault(w.game_id, set()).add(w.user_id)
+    for game_id, user_id in db.session.query(Wishlist.game_id, Wishlist.user_id).all():
+        wishlisters_by_game.setdefault(game_id, set()).add(user_id)
 
     scores = {}
     for game in all_games:
@@ -920,8 +944,16 @@ def update_daily_stats(game):
 
     db.session.commit()
 
+_last_sale_check: "datetime | None" = None
+
 def check_sales_expiry():
+    global _last_sale_check
     now = datetime.now(timezone.utc)
+    # Only run the DB query at most once per minute – no need to check on every home page hit.
+    if _last_sale_check is not None and (now - _last_sale_check).total_seconds() < 60:
+        return
+    _last_sale_check = now
+
     # only get active sales.
     sales_to_check = Game.query.filter(Game.is_on_sale == True, Game.sale_end_date != None).all()
     changed = False
@@ -1217,7 +1249,7 @@ def send_request(user_id):
         notif = Notification(
             user_id=user_id,
             message=f"{current_user.username} wants to be friends (;",
-            type="fried_request"
+            type="friend_request"
         )
         db.session.add(notif)
         db.session.commit()
@@ -2033,7 +2065,7 @@ def read_notification(notif_id):
     if notif.user_id == current_user.id:
         notif.is_read = True
         db.session.commit()
-    if notif.type == "fried_request":
+    if notif.type == "friend_request":
         sender_name = notif.message.split(" ")[0]
         sender = User.query.filter_by(username=sender_name).first()
         if sender:
@@ -2180,19 +2212,13 @@ def purchase(game_id):
 
     game = Game.query.get_or_404(game_id)
 
-    if existing_purchase and existing_purchase.refunded:
-        # Re-using a refunded row would destroy its refund history, so create a new row.
-        new_purchase = Purchase(
-            user_id=current_user.id,
-            game_id=game_id,
-            price_paid=calculate_display_price(game)
-        )
-    else:
-        new_purchase = Purchase(
-            user_id=current_user.id,
-            game_id=game_id,
-            price_paid=calculate_display_price(game)
-        )
+    # Both a first-time buy and a re-buy after refund create the same Purchase row.
+    # Re-using a refunded row would destroy its refund history, so we always create a new one.
+    new_purchase = Purchase(
+        user_id=current_user.id,
+        game_id=game_id,
+        price_paid=calculate_display_price(game)
+    )
 
     db.session.add(new_purchase)
     db.session.commit()

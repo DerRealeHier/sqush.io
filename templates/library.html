@@ -331,7 +331,7 @@
                         <li><span class="dropdown-item disabled" style="font-size:0.8rem;color:#888;">COLLECTIONS</span></li>
                         {% if collections %}
                         {% for col in collections %}
-                        {% set in_col = game.id in col_game_ids_map.get(col.id, set()) %}
+                        {% set in_col = game.id in (col_game_ids_map.get(col.id) or []) %}
                         <li>
                             <button class="dropdown-item col-toggle-btn {% if in_col %}in-col{% endif %}"
                                     data-collection-id="{{ col.id }}"
