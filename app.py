@@ -226,7 +226,7 @@ class User(UserMixin, db.Model):
     firebase_uid = db.Column(db.String(128), nullable=True, unique=True)# set once they log in with Google
     hackclub_id = db.Column(db.String(128), nullable=True, unique=True)# set once they link/login with Hack Club
     has_password = db.Column(db.Boolean, default=True)# False for accounts that only ever used Google/Hack Club (random placeholder password)
-    two_fa_enabled = db.Column(db.Boolean, default=True)# user can turn the login-code mail off on the settings page
+    two_fa_enabled = db.Column(db.Boolean, default=True)# user can turn the login code mail off on the settings page
     needs_username_setup = db.Column(db.Boolean, default=False)# True right after a fresh Google signup, until they pick their own name
     followed = db.relationship("User", secondary=Friendship.__table__,
                                primaryjoin=(Friendship.sender_id == id),
@@ -277,11 +277,7 @@ class Game(db.Model):
 
 
 class GameUpdate(db.Model):
-    """
-    One row per uploaded build for a game. Not just overwriting Game.download_path,
-    so we get a changelog/version history for free. Also carries view/vote counts now
-    so updates work like a mini devlog/vlog feed (see UpdateComment / UpdateVote below).
-    """
+    # yea we wanna see these old things too
     id = db.Column(db.Integer, primary_key=True)
     game_id = db.Column(db.Integer, db.ForeignKey("game.id"), nullable=False)
     file_path = db.Column(db.String(250), nullable=False)
@@ -585,6 +581,23 @@ class CollectionGame(db.Model):
     __table_args__ = (
         db.UniqueConstraint("collection_id", "game_id", name="unique_collection_game"),
     )
+
+
+class Gift(db.Model):
+    # tracks every game gift. form one to another. I need this juicy data.
+    id           = db.Column(db.Integer, primary_key=True)
+    sender_id    = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    recipient_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    game_id      = db.Column(db.Integer, db.ForeignKey("game.id"),  nullable=False, index=True)
+    # links back to the Stripe session so we can tie refunds to the right sender. Yeah If I buy you a game and you refund it, you should not keep the money!
+    stripe_checkout_session_id = db.Column(db.String(255), nullable=True, unique=True)
+    stripe_payment_intent_id   = db.Column(db.String(255), nullable=True)
+    message  = db.Column(db.String(500), nullable=True)  # optional greeting, OPTIONAL GUYS. ITS OPTIONAL
+    sent_at  = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    sender    = db.relationship("User", foreign_keys=[sender_id],    backref="gifts_sent")
+    recipient = db.relationship("User", foreign_keys=[recipient_id], backref="gifts_received")
+    game      = db.relationship("Game", backref="gift_purchases")
 
 
 def bundle_role(bundle, user):
@@ -2414,8 +2427,7 @@ def _merge_guest_cart(user):
 
 
 def _compute_bundle_alerts(cart_game_ids, owned_game_ids):
-    """Return a list of alert dicts for bundles where buying the bundle is
-    strictly cheaper than buying the individual cart games in that bundle."""
+    # alerts when a bundle is cheaper then the game.
     alerts = []
     bundles = Bundle.query.filter_by(is_published=True).all()
     for bundle in bundles:
@@ -2630,10 +2642,6 @@ def buy_bundle(bundle_id):
     # Nur erlauben, falls veröffentlicht ODER falls es ein angemeldeter Developer (Besitzer) ist
     if not bundle.is_published and not (current_user.is_authenticated and current_user.role == "dev"):
         return "Bundle not available yet", 404
-
-    # WICHTIG: Du musst jetzt eine Datei namens "buy_bundle.html" in deinem templates-Ordner erstellen.
-    # Tipp: Kopiere dir am besten den Inhalt von deiner "buy.html" und ändere die variablen von
-    # game.irgendwas zu bundle.irgendwas, damit die Seite für Bundles funktioniert!
     return render_template("buy_bundle.html", bundle=bundle)
 
 
@@ -2718,6 +2726,151 @@ def create_checkout_session(game_id):
     except Exception as e:
         print(f"DEBUG: Checkout error: {e}")
         return jsonify(error="Could not create checkout session"), 500
+
+
+# -------------------------------------------------------------------------
+# Gift routes
+# -------------------------------------------------------------------------
+
+@app.route("/gift/<int:game_id>")
+@login_required
+def gift_page(game_id):
+    # show the gifting form
+    game = Game.query.get_or_404(game_id)
+    game.display_price = calculate_display_price(game)
+    return render_template("gift.html", game=game)
+
+
+@app.route("/create-gift-checkout-session/<int:game_id>", methods=["POST"])
+@login_required
+def create_gift_checkout_session(game_id):
+    # validate the recipient then create the checkout session
+    if not stripe_keys["secret_key"]:
+        return jsonify(error="Stripe is not configured"), 500
+
+    game = Game.query.get_or_404(game_id)
+
+    payload = request.get_json(silent=True) or {}
+    recipient_username = payload.get("recipient_username", "").strip()
+    gift_message = payload.get("message", "").strip()[:500]
+
+    if not recipient_username:
+        return jsonify(error="Please enter a username"), 400
+
+    recipient = User.query.filter_by(username=recipient_username).first()
+    if not recipient:
+        return jsonify(error="User not found"), 404
+
+    if recipient.id == current_user.id:
+        return jsonify(error="You can't gift a game to yourself 😅"), 400
+
+    already_owns = Purchase.query.filter_by(
+        user_id=recipient.id, game_id=game.id, refunded=False
+    ).first()
+    if already_owns:
+        return jsonify(error=f"{recipient.username} already owns this game"), 400
+
+    stripe.api_key = stripe_keys["secret_key"]
+    display_price = calculate_display_price(game)
+    unit_amount = int(round(display_price * 100))
+
+    try:
+        checkout_session = stripe.checkout.Session.create(
+            success_url=(
+                url_for("gift_success", game_id=game.id, _external=True)
+                + "?session_id={CHECKOUT_SESSION_ID}"
+            ),
+            cancel_url=url_for("gift_page", game_id=game.id, _external=True),
+            payment_method_types=["card"],
+            mode="payment",
+            client_reference_id=str(current_user.id),
+            metadata={
+                "purchase_type": "gift",
+                "user_id":       str(current_user.id),   # sender (pays)
+                "recipient_id":  str(recipient.id),       # recipient (gets the game)
+                "game_id":       str(game.id),
+                "gift_message":  gift_message,
+            },
+            line_items=[{
+                "price_data": {
+                    "currency": "eur",
+                    "product_data": {
+                        "name": f"{game.title}  Gift for {recipient.username}",
+                    },
+                    "unit_amount": unit_amount,
+                },
+                "quantity": 1,
+            }],
+        )
+        return jsonify({"sessionId": checkout_session.id})
+    except stripe.error.StripeError as e:
+        print(f"DEBUG: Stripe gift checkout error: {e}")
+        return jsonify(error="Could not create Stripe checkout session"), 500
+
+
+@app.route("/gift_success/<int:game_id>")
+@login_required
+def gift_success(game_id):
+    # fallback success page
+    game = Game.query.get_or_404(game_id)
+    session_id = request.args.get("session_id")
+
+    if not session_id:
+        flash("Missing Stripe checkout session.", "error")
+        return redirect(url_for("gift_page", game_id=game.id))
+
+    try:
+        stripe.api_key = stripe_keys["secret_key"]
+        checkout_session = stripe.checkout.Session.retrieve(session_id)
+
+        if checkout_session.client_reference_id != str(current_user.id):
+            flash("This payment session does not belong to your account.", "error")
+            return redirect(url_for("gift_page", game_id=game.id))
+
+        if checkout_session.payment_status != "paid":
+            flash("Payment has not been completed yet.", "error")
+            return redirect(url_for("gift_page", game_id=game.id))
+
+        # Idempotent – webhook may have already run this, that's fine
+        fulfilled = fulfill_gift(checkout_session.id)
+
+        # Grab recipient name for the success page
+        meta = checkout_session.metadata or {}
+        recipient = None
+        try:
+            recipient = db.session.get(User, int(meta.get("recipient_id", 0)))
+        except (TypeError, ValueError):
+            pass
+
+        if fulfilled:
+            flash(
+                f" Gift sent! {recipient.username if recipient else 'Your friend'} "
+                f"now has '{game.title}' in their library.",
+                "success",
+            )
+        else:
+            flash(
+                "Payment was successful, but the gift could not be processed yet. "
+                "The recipient will receive the game shortly.",
+                "warning",
+            )
+
+    except stripe.error.StripeError as e:
+        print(f"DEBUG: Could not verify gift success session: {e}")
+        flash("The payment could not be verified.", "error")
+    except Exception as e:
+        print(f"DEBUG: Gift success error: {e}")
+        flash("Something went wrong while processing the gift.", "error")
+
+    recipient_name = None
+    try:
+        meta = stripe.checkout.Session.retrieve(session_id).metadata or {}
+        r = db.session.get(User, int(meta.get("recipient_id", 0)))
+        recipient_name = r.username if r else None
+    except Exception:
+        pass
+
+    return render_template("gift_success.html", game=game, recipient_name=recipient_name)
 
 
 @app.route("/bundle/<int:bundle_id>")
@@ -2877,9 +3030,85 @@ def fulfill_checkout(checkout_session_id):
     return False
 
 
+def fulfill_gift(checkout_session_id):
+    # that thing is called by the stripe webhook after a succesfull payment.
+    # It creates the purchase on the Recipients account and stores a gift row (so we know THAT I SEND IT) and it sends the recipient an email
+    # fully independent here
+    stripe.api_key = stripe_keys["secret_key"]
+    cs = stripe.checkout.Session.retrieve(checkout_session_id)
+    if cs.payment_status != "paid":
+        return False
+
+    metadata = cs.metadata or {}
+    if metadata.get("purchase_type") != "gift":
+        return False
+
+    try:
+        sender_id    = int(metadata["user_id"])
+        recipient_id = int(metadata["recipient_id"])
+        game_id      = int(metadata["game_id"])
+    except (KeyError, TypeError, ValueError):
+        return False
+
+    gift_message = metadata.get("gift_message", "")
+
+    # Idempotency guard: Gift row already exists for this session?
+    existing_gift = Gift.query.filter_by(
+        stripe_checkout_session_id=checkout_session_id
+    ).first()
+    if existing_gift:
+        return True
+
+    game = db.session.get(Game, game_id)
+    if not game:
+        return False
+
+    # Book the purchase on the RECIPIENT (not the sender who paid)
+    existing_purchase = Purchase.query.filter_by(
+        user_id=recipient_id, game_id=game_id, refunded=False
+    ).first()
+    if not existing_purchase:
+        p = Purchase(
+            user_id=recipient_id,
+            game_id=game_id,
+            price_paid=calculate_display_price(game),
+            stripe_checkout_session_id=checkout_session_id,
+            stripe_payment_intent_id=cs.payment_intent,
+            refunded=False,
+        )
+        db.session.add(p)
+        update_daily_stats(game)
+
+    # Create the Gift record so we always know who the sender was
+    gift = Gift(
+        sender_id=sender_id,
+        recipient_id=recipient_id,
+        game_id=game_id,
+        stripe_checkout_session_id=checkout_session_id,
+        stripe_payment_intent_id=cs.payment_intent,
+        message=gift_message,
+    )
+    db.session.add(gift)
+
+    # Notify the recipient
+    sender = db.session.get(User, sender_id)
+    sender_name = sender.username if sender else "Someone"
+    notif_msg = f"🎁 {sender_name} gifted you '{game.title}'!"
+    if gift_message:
+        notif_msg += f' 💬 "{gift_message[:100]}"'
+    db.session.add(Notification(
+        user_id=recipient_id,
+        message=notif_msg,
+        type="gift_received",
+    ))
+    db.session.commit()
+    return True
+
+
+
 @app.route("/stripe/webhook", methods=["POST"])
 def stripe_webhook():
-    """Stripe webhook endpoint used as the source of truth for payments."""
+    # stripe webhook endpoint
     if not STRIPE_WEBHOOK_SECRET:
         print("DEBUG: STRIPE_WEBHOOK_SECRET is missing")
         return jsonify(error="Stripe webhook is not configured"), 500
@@ -2904,11 +3133,19 @@ def stripe_webhook():
     try:
         if event["type"] == "checkout.session.completed":
             checkout_session = event["data"]["object"]
-            fulfill_checkout(checkout_session["id"])
+            meta = checkout_session.get("metadata") or {}
+            if meta.get("purchase_type") == "gift":
+                fulfill_gift(checkout_session["id"])
+            else:
+                fulfill_checkout(checkout_session["id"])
 
         elif event["type"] == "checkout.session.async_payment_succeeded":
             checkout_session = event["data"]["object"]
-            fulfill_checkout(checkout_session["id"])
+            meta = checkout_session.get("metadata") or {}
+            if meta.get("purchase_type") == "gift":
+                fulfill_gift(checkout_session["id"])
+            else:
+                fulfill_checkout(checkout_session["id"])
 
         elif event["type"] == "checkout.session.async_payment_failed":
             checkout_session = event["data"]["object"]
@@ -2926,7 +3163,7 @@ def stripe_webhook():
                 db.session.commit()
 
     except Exception as e:
-        # Return 500 so Stripe can retry the webhook when something failed.
+        # Return 500 so Stripe can retry the webhook when something failed. It shouldn't happen though.
         print(f"DEBUG: Stripe webhook processing error: {e}")
         return jsonify(error="Webhook processing failed"), 500
 
@@ -2949,7 +3186,7 @@ def success(game_id):
 
         checkout_session = stripe.checkout.Session.retrieve(session_id)
 
-        # Sicherheitsprüfung:
+        # Secruitycheck
         if checkout_session.client_reference_id != str(current_user.id):
             flash("This payment session does not belong to your account.", "error")
             return redirect(url_for("game_detail", game_id=game.id))
@@ -2959,9 +3196,11 @@ def success(game_id):
             flash("Payment has not been completed yet.", "error")
             return redirect(url_for("game_detail", game_id=game.id))
 
-        # Fallback für lokale Entwicklung:
-        # Der Webhook kann das später erneut aufrufen,
-        # fulfill_checkout verhindert dabei doppelte Purchases.
+        # Fallback for local dev
+        # we don't want double purchases
+        existing_purchase = Purchase.query.filter_by(user_id=current_user.id, game_id=game.id).first()
+        if existing_purchase and not existing_purchase.refunded:
+            flash("You already own this game.", "error")
         fulfilled = fulfill_checkout(checkout_session.id)
 
         if fulfilled:
@@ -3321,7 +3560,7 @@ def developer_revenue():
             "sales_count": len(game.purchases)
         })
 
-    # highest earner first
+    # highest earner first. Don't give anything to these poor.
     revenue_data.sort(key=lambda x: x["revenue"], reverse=True)
 
     return render_template(

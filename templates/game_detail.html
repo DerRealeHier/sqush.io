@@ -166,6 +166,15 @@
                    style="font-size: 1.5rem;">
                     BUY NOW
                 </a>
+
+                {% if current_user.is_authenticated %}
+                <a href="{{ url_for('gift_page', game_id=game.id) }}"
+                   class="btn btn-outline-warning btn-lg px-4 py-3 btn-comic"
+                   style="font-size: 1.5rem;"
+                   title="Gift this game to a friend">
+                    🎁 GIFT
+                </a>
+                {% endif %}
             </div>
         </div>
     </div>
