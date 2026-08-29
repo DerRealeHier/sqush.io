@@ -2762,7 +2762,7 @@ def create_gift_checkout_session(game_id):
         return jsonify(error="User not found"), 404
 
     if recipient.id == current_user.id:
-        return jsonify(error="You can't gift a game to yourself 😅"), 400
+        return jsonify(error="You can't gift a game to yourself"), 400
 
     already_owns = Purchase.query.filter_by(
         user_id=recipient.id, game_id=game.id, refunded=False
@@ -2795,7 +2795,7 @@ def create_gift_checkout_session(game_id):
                 "price_data": {
                     "currency": "eur",
                     "product_data": {
-                        "name": f"{game.title}  Gift for {recipient.username}",
+                        "name": f"{game.title} - Gift for {recipient.username}",
                     },
                     "unit_amount": unit_amount,
                 },
@@ -2811,13 +2811,15 @@ def create_gift_checkout_session(game_id):
 @app.route("/gift_success/<int:game_id>")
 @login_required
 def gift_success(game_id):
-    # fallback success page
+    """Fallback success page – called after Stripe redirects the sender back."""
     game = Game.query.get_or_404(game_id)
     session_id = request.args.get("session_id")
 
     if not session_id:
         flash("Missing Stripe checkout session.", "error")
         return redirect(url_for("gift_page", game_id=game.id))
+
+    recipient_name = None
 
     try:
         stripe.api_key = stripe_keys["secret_key"]
@@ -2834,17 +2836,16 @@ def gift_success(game_id):
         # Idempotent – webhook may have already run this, that's fine
         fulfilled = fulfill_gift(checkout_session.id)
 
-        # Grab recipient name for the success page
-        meta = checkout_session.metadata or {}
-        recipient = None
-        try:
-            recipient = db.session.get(User, int(meta.get("recipient_id", 0)))
-        except (TypeError, ValueError):
-            pass
+        #now the Stripe metadata shouldn't be touched
+        gift_record = Gift.query.filter_by(
+            stripe_checkout_session_id=checkout_session.id
+        ).first()
+        if gift_record:
+            recipient_name = gift_record.recipient.username
 
         if fulfilled:
             flash(
-                f" Gift sent! {recipient.username if recipient else 'Your friend'} "
+                f"Gift sent! {recipient_name or 'Your friend'} "
                 f"now has '{game.title}' in their library.",
                 "success",
             )
@@ -2861,14 +2862,6 @@ def gift_success(game_id):
     except Exception as e:
         print(f"DEBUG: Gift success error: {e}")
         flash("Something went wrong while processing the gift.", "error")
-
-    recipient_name = None
-    try:
-        meta = stripe.checkout.Session.retrieve(session_id).metadata or {}
-        r = db.session.get(User, int(meta.get("recipient_id", 0)))
-        recipient_name = r.username if r else None
-    except Exception:
-        pass
 
     return render_template("gift_success.html", game=game, recipient_name=recipient_name)
 
@@ -3093,9 +3086,9 @@ def fulfill_gift(checkout_session_id):
     # Notify the recipient
     sender = db.session.get(User, sender_id)
     sender_name = sender.username if sender else "Someone"
-    notif_msg = f"🎁 {sender_name} gifted you '{game.title}'!"
+    notif_msg = f"{sender_name} gifted you '{game.title}'!"
     if gift_message:
-        notif_msg += f' 💬 "{gift_message[:100]}"'
+        notif_msg += f' "{gift_message[:100]}"'
     db.session.add(Notification(
         user_id=recipient_id,
         message=notif_msg,
