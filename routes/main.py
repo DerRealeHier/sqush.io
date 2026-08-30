@@ -1,0 +1,132 @@
+import json
+from flask import Blueprint, render_template, jsonify
+from flask_login import current_user, login_required
+from extensions import db
+from models.game import Game, Screenshot, Video, GameUpdate, UpdateVote, GameFollow
+from models.bundle import Bundle
+from services.game_service import (
+    calculate_display_price,
+    get_recommended_games,
+    update_daily_stats,
+    check_sales_expiry,
+)
+import config
+
+main_bp = Blueprint("main", __name__)
+
+
+#This is for the home Page.
+@main_bp.route("/")
+def home():
+    check_sales_expiry()  #checking
+    sale_games = Game.query.filter_by(is_on_sale=True).all()
+
+    for game in sale_games:
+        game.display_price = calculate_display_price(game)
+
+    # personalized recommendations, only makes sense for logged in folks
+    recommended_games = get_recommended_games(current_user, limit=6)
+    for game in recommended_games:
+        game.display_price = calculate_display_price(game)
+        tags = [t.strip().lower() for t in game.tags.split(",")] if game.tags else []
+        game.tags_json = json.dumps(tags)
+
+    return render_template('home.html', sale_games=sale_games, recommended_games=recommended_games)
+
+
+#Store Page
+@main_bp.route("/store")
+def store_front():
+    all_games = Game.query.all()
+    #Sorting them after their genre.
+    games_by_genre = {}
+    # collect every distinct tag across the whole catalog so the filter panel can render checkboxes for them
+    all_tags = set()
+    for game in all_games:  #while true loop would be great here (; The performance would go crazy
+        tags = [t.strip().lower() for t in game.tags.split(",")] if game.tags else []
+        game.tags_json = json.dumps(tags)
+        game.display_price = calculate_display_price(game)
+        all_tags.update(tags)
+
+        if game.genre not in games_by_genre:
+            games_by_genre[game.genre] = []
+
+        games_by_genre[game.genre].append(game)
+
+    # Load all bundles you see. MAKE IT WOOOOOOORK.. Make it woOOOOOrk.. I JUST WANNA MAKE IT WOOORRRK
+    bundles = Bundle.query.filter_by(is_published=True).all()
+    return render_template("store.html", genres=games_by_genre, all_tags=sorted(all_tags), bundles=bundles)
+
+
+@main_bp.route("/buy/<int:game_id>", methods=["GET", "POST"])
+def buy(game_id):
+    game = Game.query.get_or_404(game_id)
+    game.display_price = calculate_display_price(game)
+    return render_template("buy.html", game=game)
+
+
+@main_bp.route("/buy_bundle/<int:bundle_id>", methods=["GET", "POST"])
+@login_required
+def buy_bundle(bundle_id):
+    bundle = Bundle.query.get_or_404(bundle_id)
+    # Nur erlauben, falls veröffentlicht ODER falls es ein angemeldeter Developer (Besitzer) ist
+    if not bundle.is_published and not (current_user.is_authenticated and current_user.role == "dev"):
+        return "Bundle not available yet", 404
+    return render_template("buy_bundle.html", bundle=bundle)
+
+
+#This Server would cry
+@main_bp.route("/game/<int:game_id>")
+def game_detail(game_id):
+    game = Game.query.get_or_404(game_id)
+    screenshots = Screenshot.query.filter_by(game_id=game.id).all()
+    videos = Video.query.filter_by(game_id=game.id).all()
+    reviews = game.reviews
+    total_ratings = len(reviews)
+
+    if total_ratings > 0:
+        positive_count = sum(1 for r in reviews if r.is_positive)
+        average_score = (positive_count / total_ratings) * 100
+    else:
+        average_score = 0
+
+    #Lets do Math (:
+    game.display_price = calculate_display_price(game)
+
+    # follow status and my own up/downvotes on this game's updates, only relevant when logged in
+    is_following = False
+    my_update_votes = {}
+    if current_user.is_authenticated:
+        is_following = GameFollow.query.filter_by(user_id=current_user.id, game_id=game.id).first() is not None
+        my_update_votes = {
+            v.update_id: v.vote_type for v in
+            UpdateVote.query.join(GameUpdate, UpdateVote.update_id == GameUpdate.id)
+            .filter(GameUpdate.game_id == game.id, UpdateVote.user_id == current_user.id).all()
+        }
+
+    return render_template("game_detail.html", game=game, screenshots=screenshots, videos=videos,
+                           average_score=average_score, reviews=reviews,
+                           is_following=is_following, my_update_votes=my_update_votes)
+
+
+@main_bp.route("/bundle/<int:bundle_id>")
+def bundle_detail(bundle_id):
+    bundle = Bundle.query.get_or_404(bundle_id)
+    if not bundle.is_published and not (current_user.is_authenticated and current_user.role == "dev"):
+        return "Bundle not available yet", 404
+    return render_template("bundle_detail.html", bundle=bundle)
+
+
+@main_bp.route("/config")
+def get_publishable_key():
+    stripe_config = {"publicKey": config.stripe_keys["publishable_key"]}
+    return jsonify(stripe_config)
+
+
+@main_bp.route("/increment_view/<int:game_id>", methods=["POST"])
+def increment_view(game_id):
+    game = Game.query.get_or_404(game_id)
+    game.view_count += 1
+    db.session.commit()
+    update_daily_stats(game)
+    return jsonify({"status": "success", "views": game.view_count})
