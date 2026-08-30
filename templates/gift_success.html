@@ -1,0 +1,134 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Gift Sent!</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --ink: #0b0b0d;
+            --panel: #141416;
+            --paper: #f5f1e6;
+            --yellow: #ffe234;
+            --green: #33d17a;
+            --pink: #ff3b5c;
+            --line: #000000;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background-color: var(--ink);
+            background-image: radial-gradient(rgba(255,255,255,0.06) 1.5px, transparent 1.5px);
+            background-size: 18px 18px;
+            color: var(--paper);
+            font-family: 'Space Grotesk', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem 1.25rem;
+        }
+
+        .wrap { width: 100%; max-width: 560px; text-align: center; }
+
+        .headline {
+            font-family: 'Bangers', sans-serif;
+            font-size: clamp(2.5rem, 9vw, 4.5rem);
+            color: var(--yellow);
+            -webkit-text-stroke: 2px var(--line);
+            text-shadow: 4px 4px 0 var(--line);
+            margin: 0 0 0.5rem;
+            transform: rotate(-2deg);
+            display: inline-block;
+        }
+
+        .comic-panel {
+            background: var(--panel);
+            border: 5px solid var(--paper);
+            box-shadow: 12px 12px 0 var(--green);
+            padding: 2rem;
+            margin: 1.75rem 0;
+            transform: rotate(-0.5deg);
+        }
+
+        .comic-panel p { font-size: 1.15rem; margin: 0 0 0.5rem; }
+        .comic-panel strong { color: var(--yellow); }
+
+        .flash-msg {
+            border: 3px solid var(--line);
+            padding: 0.65rem 1rem;
+            font-weight: 700;
+            margin-bottom: 1.25rem;
+        }
+        .flash-success { background: var(--green); color: var(--ink); }
+        .flash-warning { background: var(--yellow); color: var(--ink); }
+        .flash-error   { background: var(--pink);   color: var(--ink); }
+
+        .actions { display: flex; flex-wrap: wrap; gap: 0.85rem; justify-content: center; margin-top: 1.5rem; }
+
+        .btn-comic {
+            font-family: 'Bangers', sans-serif;
+            font-size: 1.1rem;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            border: 3px solid var(--line);
+            box-shadow: 5px 5px 0 var(--line);
+            padding: 0.85rem 1.5rem;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.12s, box-shadow 0.12s;
+        }
+
+        .btn-comic:hover { transform: translate(-3px,-3px); box-shadow: 8px 8px 0 var(--line); }
+        .btn-comic:active { transform: translate(0,0); box-shadow: 2px 2px 0 var(--line); }
+
+        .btn-store  { background: var(--yellow); color: var(--ink); }
+        .btn-home   { background: transparent;   color: var(--paper); }
+        .btn-home:hover { background: var(--pink); color: var(--ink); }
+    </style>
+</head>
+<body>
+
+<div class="wrap">
+    <h1 class="headline">Gift Sent!</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for cat, msg in messages %}
+    <div class="flash-msg flash-{{ cat }}">{{ msg }}</div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <div class="comic-panel">
+        <p>
+            You gifted <strong>{{ game.title }}</strong>
+            {% if recipient_name %} to <strong>{{ recipient_name }}</strong>{% endif %}!
+        </p>
+        <p style="color:#aaa; font-size:0.9rem;">
+            They will see a notification the next time they log in.
+        </p>
+    </div>
+
+    <div class="actions">
+        <a href="{{ url_for('store_front') }}" class="btn-comic btn-store">
+            Back to Store
+        </a>
+        <a href="{{ url_for('home') }}" class="btn-comic btn-home">
+            Home
+        </a>
+    </div>
+</div>
+
+<script>window.squshCartToken = "{{ cart_token }}";</script>
+</body>
+</html>

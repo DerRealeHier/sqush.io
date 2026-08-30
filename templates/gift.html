@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Gift - {{ game.title }}</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+
+    <script src="https://js.stripe.com/v3/"></script>
+
+    <style>
+        :root {
+            --ink: #0b0b0d;
+            --panel: #141416;
+            --paper: #f5f1e6;
+            --yellow: #ffe234;
+            --pink: #ff3b5c;
+            --green: #33d17a;
+            --line: #000000;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background-color: var(--ink);
+            background-image: radial-gradient(rgba(255,255,255,0.06) 1.5px, transparent 1.5px);
+            background-size: 18px 18px;
+            color: var(--paper);
+            font-family: 'Space Grotesk', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem 1.25rem;
+        }
+
+        .wrap { width: 100%; max-width: 640px; }
+
+        .eyebrow {
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            color: var(--yellow);
+            margin-bottom: 0.75rem;
+        }
+
+        .headline {
+            text-align: center;
+            font-family: 'Bangers', sans-serif;
+            font-size: clamp(2.5rem, 8vw, 4rem);
+            letter-spacing: 0.04em;
+            color: var(--yellow);
+            -webkit-text-stroke: 2px var(--line);
+            text-shadow: 4px 4px 0 var(--line);
+            margin: 0 0 1.75rem;
+            transform: rotate(-2deg);
+        }
+
+        .comic-panel {
+            background: var(--panel);
+            border: 5px solid var(--paper);
+            box-shadow: 12px 12px 0 var(--yellow);
+            transform: rotate(-0.6deg);
+            padding: 2rem;
+        }
+
+        .cover-row {
+            display: grid;
+            grid-template-columns: 130px 1fr;
+            gap: 1.5rem;
+            align-items: center;
+            margin-bottom: 1.75rem;
+        }
+
+        .cover {
+            position: relative;
+            aspect-ratio: 3 / 4;
+            border: 3px solid var(--line);
+            overflow: hidden;
+            background: repeating-linear-gradient(45deg, #26262a 0 10px, #201f22 10px 20px);
+        }
+
+        .cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+        .cover-fallback {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem;
+            font-family: 'Bangers', sans-serif;
+            font-size: 1rem;
+            text-align: center;
+            color: var(--paper);
+        }
+
+        .price-tag {
+            position: absolute;
+            bottom: -14px;
+            right: -14px;
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: var(--yellow);
+            border: 3px solid var(--line);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform: rotate(-10deg);
+            box-shadow: 3px 3px 0 var(--line);
+        }
+
+        .price-tag span {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 0.82rem;
+            color: var(--ink);
+            text-align: center;
+            line-height: 1.1;
+        }
+
+        .info p { margin: 0 0 0.25rem; font-size: 1.1rem; }
+        .info strong { color: var(--yellow); }
+
+        .form-section label {
+            display: block;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--yellow);
+            margin-bottom: 0.4rem;
+        }
+
+        .form-section input[type="text"],
+        .form-section textarea {
+            width: 100%;
+            background: #1e1e22;
+            border: 3px solid var(--paper);
+            color: var(--paper);
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1rem;
+            padding: 0.65rem 0.9rem;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        .form-section input[type="text"]:focus,
+        .form-section textarea:focus { border-color: var(--yellow); }
+
+        .form-section textarea { resize: vertical; min-height: 80px; }
+
+        .form-group { margin-bottom: 1.25rem; }
+
+        .char-count { text-align: right; font-size: 0.72rem; color: #888; margin-top: 0.2rem; }
+
+        #errorMsg {
+            display: none;
+            background: var(--pink);
+            color: var(--ink);
+            border: 3px solid var(--line);
+            padding: 0.65rem 1rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .actions { display: flex; flex-wrap: wrap; gap: 0.85rem; margin-top: 1.5rem; }
+
+        .btn-comic {
+            font-family: 'Bangers', sans-serif;
+            font-size: 1.1rem;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            border: 3px solid var(--line);
+            box-shadow: 5px 5px 0 var(--line);
+            padding: 0.85rem 1.5rem;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            transition: transform 0.12s, box-shadow 0.12s;
+        }
+
+        .btn-comic:hover, .btn-comic:focus-visible { transform: translate(-3px,-3px); box-shadow: 8px 8px 0 var(--line); }
+        .btn-comic:active { transform: translate(0,0); box-shadow: 2px 2px 0 var(--line); }
+
+        .btn-gift { background: var(--yellow); color: var(--ink); }
+        .btn-gift:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important; box-shadow: 5px 5px 0 var(--line) !important; }
+        .btn-cancel { background: transparent; color: var(--paper); }
+        .btn-cancel:hover { background: var(--pink); color: var(--ink); }
+
+        @media (max-width: 520px) {
+            .cover-row { grid-template-columns: 1fr; }
+            .cover { width: 120px; margin: 0 auto; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="wrap">
+    <p class="eyebrow">Sqush &mdash; Gift</p>
+    <h1 class="headline">Send a Gift!</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for cat, msg in messages %}
+    <div style="background:{% if cat=='error' %}var(--pink){% else %}var(--green){% endif %};
+                color:var(--ink); border:3px solid var(--line); padding:0.65rem 1rem;
+                font-weight:700; margin-bottom:1rem;">{{ msg }}</div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <div class="comic-panel">
+        <div class="cover-row">
+            <div class="cover">
+                {% if game.image_path %}
+                <img src="{{ url_for('static', filename=game.image_path) }}" alt="{{ game.title }} cover">
+                {% else %}
+                <div class="cover-fallback">{{ game.title }}</div>
+                {% endif %}
+                <div class="price-tag">
+                    <span>{{ "%.2f"|format(game.display_price) }}&euro;</span>
+                </div>
+            </div>
+            <div class="info">
+                <p>You're gifting</p>
+                <p><strong>{{ game.title }}</strong></p>
+                <p style="color:#aaa; font-size:0.9rem;">{{ game.genre }}</p>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <div id="errorMsg"></div>
+
+            <div class="form-group">
+                <label for="recipientInput">Recipient username</label>
+                <input type="text" id="recipientInput" placeholder="e.g. CoolGamer42"
+                       autocomplete="off" maxlength="64">
+            </div>
+
+            <div class="form-group">
+                <label for="messageInput">Personal message (optional)</label>
+                <textarea id="messageInput" placeholder="Happy birthday!" maxlength="500"></textarea>
+                <div class="char-count"><span id="charCount">0</span> / 500</div>
+            </div>
+
+            <div class="actions">
+                <button type="button" class="btn-comic btn-gift" id="giftBtn"
+                        data-game-id="{{ game.id }}">
+                    Gift for {{ "%.2f"|format(game.display_price) }}&euro;
+                </button>
+                <a href="{{ url_for('game_detail', game_id=game.id) }}" class="btn-comic btn-cancel">
+                    Cancel
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const messageInput = document.getElementById("messageInput");
+    const charCount    = document.getElementById("charCount");
+    if (messageInput && charCount) {
+        messageInput.addEventListener("input", () => { charCount.textContent = messageInput.value.length; });
+    }
+
+    const giftBtn = document.getElementById("giftBtn");
+    if (giftBtn) {
+        giftBtn.addEventListener("click", async () => {
+            const recipient = document.getElementById("recipientInput").value.trim();
+            const message   = messageInput ? messageInput.value.trim() : "";
+            const errorDiv  = document.getElementById("errorMsg");
+            const gameId    = giftBtn.getAttribute("data-game-id");
+            const origLabel = giftBtn.textContent;
+
+            if (errorDiv) errorDiv.style.display = "none";
+
+            if (!recipient) {
+                if (errorDiv) {
+                    errorDiv.textContent = "Please enter the recipient's username.";
+                    errorDiv.style.display = "block";
+                }
+                return;
+            }
+
+            giftBtn.disabled = true;
+            giftBtn.textContent = "Processing...";
+
+            try {
+                const res = await fetch(`/create-gift-checkout-session/${gameId}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ recipient_username: recipient, message: message }),
+                });
+                const data = await res.json();
+
+                if (data.error) {
+                    if (errorDiv) {
+                        errorDiv.textContent = data.error;
+                        errorDiv.style.display = "block";
+                    }
+                    giftBtn.disabled = false;
+                    giftBtn.textContent = origLabel;
+                    return;
+                }
+
+                if (data.redirect) {
+                    window.location.href = data.redirect;
+                    return;
+                }
+
+                if (data.sessionId) {
+                    const cfgRes = await fetch("/config");
+                    const cfg = await cfgRes.json();
+                    if (!cfg.publicKey) {
+                        if (errorDiv) {
+                            errorDiv.textContent = "Stripe publishable key is not configured.";
+                            errorDiv.style.display = "block";
+                        }
+                        giftBtn.disabled = false;
+                        giftBtn.textContent = origLabel;
+                        return;
+                    }
+                    const stripe = Stripe(cfg.publicKey);
+                    const { error } = await stripe.redirectToCheckout({ sessionId: data.sessionId });
+                    if (error) {
+                        if (errorDiv) {
+                            errorDiv.textContent = error.message;
+                            errorDiv.style.display = "block";
+                        }
+                        giftBtn.disabled = false;
+                        giftBtn.textContent = origLabel;
+                    }
+                }
+            } catch (err) {
+                console.error("Gift checkout error:", err);
+                if (errorDiv) {
+                    errorDiv.textContent = "Something went wrong. Please try again.";
+                    errorDiv.style.display = "block";
+                }
+                giftBtn.disabled = false;
+                giftBtn.textContent = origLabel;
+            }
+        });
+    }
+</script>
+
+<script>window.squshCartToken = "{{ cart_token }}";</script>
+</body>
+</html>
