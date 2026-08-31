@@ -16,6 +16,7 @@ from models.user import User, LoginOTP
 from services.mail_service import send_verification_email, send_email_change_verification, send_login_otp
 from services.cart_service import _merge_guest_cart
 from services.auth_service import connected_login_methods_count
+from services.badge_service import sync_user_badges
 import config
 
 auth_bp = Blueprint("auth", __name__)
@@ -42,6 +43,7 @@ def register():
         new_user.email_verified = not require_email_confirmation
         db.session.add(new_user)
         db.session.commit()
+        sync_user_badges(new_user)
 
         if require_email_confirmation:
             send_verification_email(new_user)

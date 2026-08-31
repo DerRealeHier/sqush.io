@@ -1340,3 +1340,427 @@ body.bundle-dashboard .bundle-stat-box small {
         position: static;
     }
 }
+
+/* ============================================================
+   PROFILE BADGES SYSTEM
+   ============================================================ */
+
+/* ---- Featured Badge Ribbon ---- */
+.featured-badge-ribbon {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Bangers', sans-serif;
+    font-size: 1.3rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #000;
+    padding: 6px 20px 6px 14px;
+    border: 3px solid #000;
+    box-shadow: 4px 4px 0px #000;
+    position: relative;
+    cursor: default;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    /* angled right edge ribbon cut */
+    clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%);
+    padding-right: 28px;
+}
+.featured-badge-ribbon::before {
+    content: "★ FEATURED";
+    position: absolute;
+    top: -14px;
+    left: 10px;
+    font-family: 'Bangers', sans-serif;
+    font-size: 0.62rem;
+    letter-spacing: 2px;
+    color: #000;
+    background: #fff;
+    border: 2px solid #000;
+    padding: 1px 6px;
+    transform: rotate(-2deg);
+    box-shadow: 2px 2px 0px #000;
+}
+.featured-badge-ribbon:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0px #000;
+}
+.featured-badge-ribbon i {
+    font-size: 1.4rem;
+}
+
+/* ---- Tier glow rings around featured ribbon ---- */
+.tier-legendary .featured-badge-ribbon  { animation: badge-pulse-legendary 2.4s ease-in-out infinite; }
+.tier-diamond  .featured-badge-ribbon  { animation: badge-pulse-diamond  2.8s ease-in-out infinite; }
+.tier-gold     .featured-badge-ribbon  { animation: badge-pulse-gold     3s   ease-in-out infinite; }
+.tier-special  .featured-badge-ribbon  { animation: badge-pulse-special  2.5s ease-in-out infinite; }
+
+@keyframes badge-pulse-legendary {
+    0%, 100% { box-shadow: 4px 4px 0px #000, 0 0 0 0 rgba(255,215,0,0); }
+    50%       { box-shadow: 4px 4px 0px #000, 0 0 18px 6px rgba(255,215,0,0.55); }
+}
+@keyframes badge-pulse-diamond {
+    0%, 100% { box-shadow: 4px 4px 0px #000, 0 0 0 0 rgba(185,115,255,0); }
+    50%       { box-shadow: 4px 4px 0px #000, 0 0 18px 6px rgba(185,115,255,0.5); }
+}
+@keyframes badge-pulse-gold {
+    0%, 100% { box-shadow: 4px 4px 0px #000, 0 0 0 0 rgba(51,209,122,0); }
+    50%       { box-shadow: 4px 4px 0px #000, 0 0 14px 4px rgba(51,209,122,0.45); }
+}
+@keyframes badge-pulse-special {
+    0%, 100% { box-shadow: 4px 4px 0px #000, 0 0 0 0 rgba(236,55,80,0); }
+    50%       { box-shadow: 4px 4px 0px #000, 0 0 14px 5px rgba(236,55,80,0.5); }
+}
+
+/* ---- Badge Grid (unlocked badges section) ---- */
+.user-badges-section {
+    margin: 22px 0 10px;
+}
+
+.badges-heading {
+    font-family: 'Bangers', sans-serif;
+    font-size: 1rem;
+    letter-spacing: 2px;
+    color: #888;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.badges-heading::before,
+.badges-heading::after {
+    content: "";
+    flex: 1;
+    height: 2px;
+    background: #333;
+}
+
+.badge-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+}
+
+/* ---- Individual Badge Chip ---- */
+.badge-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Bangers', sans-serif;
+    font-size: 1rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #000;
+    padding: 5px 14px;
+    border: 3px solid #000;
+    box-shadow: 3px 3px 0px #000;
+    position: relative;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+    cursor: default;
+    user-select: none;
+    white-space: nowrap;
+}
+.badge-chip i {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+/* Hoverable (own profile picker mode) */
+.badge-chip.badge-pickable {
+    cursor: pointer;
+}
+.badge-chip.badge-pickable:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 5px 5px 0px #000;
+    filter: brightness(1.1);
+}
+.badge-chip.badge-pickable:active {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0px #000;
+}
+
+/* Currently featured star marker */
+.badge-chip.is-featured {
+    outline: 3px solid #fff;
+    outline-offset: 2px;
+}
+.badge-chip .featured-star {
+    font-size: 0.75rem;
+    position: absolute;
+    top: -8px;
+    right: -6px;
+    background: #fff;
+    color: #000;
+    border: 2px solid #000;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 1px 1px 0px #000;
+    pointer-events: none;
+}
+
+/* Tier shimmer stripes */
+.badge-chip.tier-legendary::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.25) 50%, transparent 60%);
+    background-size: 200% 100%;
+    animation: badge-shimmer 2s linear infinite;
+    pointer-events: none;
+}
+.badge-chip.tier-diamond::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.18) 50%, transparent 60%);
+    background-size: 200% 100%;
+    animation: badge-shimmer 2.5s linear infinite;
+    pointer-events: none;
+}
+@keyframes badge-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* ---- Badge Tooltip ---- */
+.badge-chip-wrap {
+    position: relative;
+    display: inline-block;
+}
+.badge-chip-wrap .badge-tooltip {
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    background: #111;
+    color: #fff;
+    border: 3px solid #fff;
+    box-shadow: 4px 4px 0px #000;
+    padding: 8px 14px;
+    width: max-content;
+    max-width: 220px;
+    text-align: center;
+    font-family: 'Comic Neue', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 700;
+    pointer-events: none;
+    transition: opacity 0.16s ease, transform 0.16s ease;
+    z-index: 9000;
+    white-space: normal;
+}
+.badge-chip-wrap .badge-tooltip strong {
+    display: block;
+    font-family: 'Bangers', sans-serif;
+    font-size: 1rem;
+    letter-spacing: 1px;
+    color: var(--yellow, #ffe14d);
+    margin-bottom: 2px;
+}
+.badge-chip-wrap .badge-tooltip .tooltip-date {
+    font-size: 0.72rem;
+    color: #888;
+    margin-top: 3px;
+}
+/* tooltip pointer arrow */
+.badge-chip-wrap .badge-tooltip::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 7px;
+    border-style: solid;
+    border-color: #fff transparent transparent transparent;
+}
+.badge-chip-wrap:hover .badge-tooltip,
+.badge-chip-wrap:focus-within .badge-tooltip {
+    visibility: visible;
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* ---- Pick-hint label under grid (own profile only) ---- */
+.badge-pick-hint {
+    font-size: 0.72rem;
+    color: #666;
+    text-align: center;
+    margin-top: 8px;
+    font-family: 'Comic Neue', sans-serif;
+    font-weight: 700;
+}
+
+/* ---- "No badges" placeholder ---- */
+.no-badges-placeholder {
+    font-family: 'Comic Neue', sans-serif;
+    font-weight: 700;
+    color: #555;
+    font-size: 0.9rem;
+    padding: 12px 20px;
+    border: 2px dashed #333;
+}
+
+/* ---- "All Badges" Modal styling ---- */
+.badge-modal-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-family: 'Bangers', sans-serif;
+    font-size: 0.95rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 6px 16px;
+    border: 3px solid #000;
+    box-shadow: 3px 3px 0px #000;
+    color: #000;
+    position: relative;
+    width: 100%;
+}
+.badge-modal-chip.locked {
+    filter: grayscale(1) opacity(0.45);
+    cursor: not-allowed;
+    box-shadow: 2px 2px 0px #000;
+}
+.badge-modal-chip.locked::after {
+    content: "\F4C1"; /* bi-lock-fill unicode */
+    font-family: "bootstrap-icons";
+    position: absolute;
+    right: 10px;
+    font-size: 1rem;
+    color: #555;
+}
+.badge-modal-chip .badge-modal-desc {
+    font-family: 'Comic Neue', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #000;
+    display: block;
+    text-transform: none;
+    letter-spacing: 0;
+}
+.badge-modal-chip .badge-tier-label {
+    font-size: 0.6rem;
+    font-family: 'Bangers', sans-serif;
+    letter-spacing: 1px;
+    background: #000;
+    color: #fff;
+    padding: 1px 5px;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+#allBadgesModal .modal-content {
+    background: var(--paper, #161616);
+    border: 4px solid #fff;
+    box-shadow: 10px 10px 0px #000;
+    border-radius: 0;
+    color: #fff;
+}
+#allBadgesModal .modal-header {
+    border-bottom: 3px solid #fff;
+    background: var(--yellow, #ffe14d);
+    color: #000;
+    border-radius: 0;
+}
+#allBadgesModal .modal-title {
+    font-family: 'Bangers', sans-serif;
+    font-size: 1.8rem;
+    letter-spacing: 2px;
+    color: #000;
+}
+#allBadgesModal .modal-footer {
+    border-top: 3px solid #333;
+}
+#allBadgesModal .btn-close {
+    filter: invert(0);
+}
+
+/* ---- Community Card Micro-Badge ---- */
+.friend-card-featured-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: 'Bangers', sans-serif;
+    font-size: 0.78rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #000;
+    padding: 2px 9px;
+    border: 2px solid #000;
+    box-shadow: 2px 2px 0px #000;
+    margin-top: 8px;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.friend-card-featured-badge i {
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+/* ---- Comment Author Micro-Badge ---- */
+.comment-author-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-family: 'Bangers', sans-serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: #000;
+    padding: 1px 7px;
+    border: 2px solid #000;
+    box-shadow: 1px 1px 0px #000;
+    vertical-align: middle;
+    margin-left: 4px;
+    flex-shrink: 0;
+}
+.comment-author-badge i {
+    font-size: 0.72rem;
+}
+
+/* ---- Badge count bubble on avatar ---- */
+.profile-avatar-wrap {
+    position: relative;
+    display: inline-block;
+}
+.profile-avatar-badge-count {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    background: var(--yellow, #ffe14d);
+    color: #000;
+    font-family: 'Bangers', sans-serif;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    border: 2px solid #000;
+    box-shadow: 2px 2px 0px #000;
+    padding: 1px 6px;
+    pointer-events: none;
+}
+
+/* ---- Pop-in animation for badge chips ---- */
+@keyframes badge-pop-in {
+    from { opacity: 0; transform: scale(0.7) rotate(-4deg); }
+    to   { opacity: 1; transform: scale(1)   rotate(0deg);  }
+}
+.badge-chip-wrap {
+    animation: badge-pop-in 0.22s ease-out both;
+}
+/* stagger via nth-child up to 10 */
+.badge-chip-wrap:nth-child(1)  { animation-delay: 0.03s; }
+.badge-chip-wrap:nth-child(2)  { animation-delay: 0.06s; }
+.badge-chip-wrap:nth-child(3)  { animation-delay: 0.09s; }
+.badge-chip-wrap:nth-child(4)  { animation-delay: 0.12s; }
+.badge-chip-wrap:nth-child(5)  { animation-delay: 0.15s; }
+.badge-chip-wrap:nth-child(6)  { animation-delay: 0.18s; }
+.badge-chip-wrap:nth-child(7)  { animation-delay: 0.21s; }
+.badge-chip-wrap:nth-child(8)  { animation-delay: 0.24s; }
+.badge-chip-wrap:nth-child(9)  { animation-delay: 0.27s; }
+.badge-chip-wrap:nth-child(10) { animation-delay: 0.30s; }

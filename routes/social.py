@@ -7,6 +7,13 @@ from models.user import User, Friendship, Notification, ProfileComment
 from models.game import Game, GameUpdate, UpdateComment, UpdateVote, GameFollow, Review, ReviewVote
 from models.commerce import Purchase
 from services.file_service import allowed_file
+from services.badge_service import (
+    sync_user_badges,
+    get_user_badges,
+    get_featured_badge,
+    set_featured_badge,
+    get_all_badges,
+)
 import config
 
 social_bp = Blueprint("social", __name__)
@@ -39,6 +46,9 @@ def accept_request(request_id):
     if req.receiver_id == current_user.id:
         req.status = "accepted"
         db.session.commit()
+        sync_user_badges(current_user)
+        if req.sender:
+            sync_user_badges(req.sender)
     return redirect(url_for("profile", username=current_user.username))
 
 
@@ -51,6 +61,8 @@ def follow(username):
         if not existing:
             db.session.add(Friendship(sender_id=current_user.id, receiver_id=user.id, status="accepted"))
             db.session.commit()
+            sync_user_badges(current_user)
+            sync_user_badges(user)
     return redirect(url_for('profile', username=username))
 
 
@@ -89,6 +101,7 @@ def rate_game(game_id):
         db.session.add(new_review)
 
     db.session.commit()
+    sync_user_badges(current_user)
     return redirect(url_for("game_detail", game_id=game_id))
 
 
@@ -298,12 +311,36 @@ def profile(username):
     comments = ProfileComment.query.filter_by(profile_user_id=target_user.id) \
         .order_by(ProfileComment.created_at.desc()).all()
 
+    # Sync and load user badges
+    sync_user_badges(target_user)
+    badges = get_user_badges(target_user)
+    featured_badge = get_featured_badge(target_user)
+    all_badges = get_all_badges()
+
     return render_template(
         "profile.html",
         user=target_user,
         friend_request=friend_request,
-        comments=comments
+        comments=comments,
+        badges=badges,
+        featured_badge=featured_badge,
+        all_badges=all_badges,
     )
+
+
+@social_bp.route("/profile/feature_badge", methods=["POST"])
+@login_required
+def feature_badge():
+    badge_key = request.form.get("badge_key")
+    if badge_key is None and request.is_json:
+        badge_key = (request.get_json(silent=True) or {}).get("badge_key")
+    success = set_featured_badge(current_user, badge_key)
+    if request.is_json:
+        return jsonify({
+            "status": "success" if success else "error",
+            "featured_badge": current_user.featured_badge_key
+        })
+    return redirect(url_for("profile", username=current_user.username))
 
 
 @social_bp.route("/profile/<username>/comment", methods=["POST"])

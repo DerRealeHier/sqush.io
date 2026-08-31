@@ -8,6 +8,7 @@ from models.commerce import Purchase, Gift
 from models.bundle import Bundle
 from services.game_service import calculate_display_price, update_daily_stats
 from services.mail_service import send_email, _comic_email_shell
+from services.badge_service import sync_user_badges
 import config
 
 
@@ -70,6 +71,7 @@ def fulfill_checkout(checkout_session_id):
                 db.session.add(p)
                 update_daily_stats(game)
         db.session.commit()
+        sync_user_badges(user)
         return True
 
     # When its a single game
@@ -93,6 +95,7 @@ def fulfill_checkout(checkout_session_id):
             if not existing_purchase.stripe_payment_intent_id:
                 existing_purchase.stripe_payment_intent_id = checkout_session.payment_intent
             db.session.commit()
+            sync_user_badges(user)
             return True
 
         purchase = Purchase(
@@ -106,6 +109,7 @@ def fulfill_checkout(checkout_session_id):
         db.session.add(purchase)
         db.session.commit()
         update_daily_stats(game)
+        sync_user_badges(user)
         return True
 
     # When its a cart (multiple individual games in one session)
@@ -133,6 +137,7 @@ def fulfill_checkout(checkout_session_id):
                 db.session.add(p)
                 update_daily_stats(game)
         db.session.commit()
+        sync_user_badges(user)
         return True
 
     return False
@@ -232,4 +237,8 @@ def fulfill_gift(checkout_session_id):
         send_email(recipient.email, f"{sender_name} gifted you {game.title}!", _comic_email_shell("You received a gift!", email_body))
 
     db.session.commit()
+    if sender:
+        sync_user_badges(sender)
+    if recipient:
+        sync_user_badges(recipient)
     return True

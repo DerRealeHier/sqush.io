@@ -28,6 +28,7 @@ from models import (
     Collection,
     CollectionGame,
     Gift,
+    UserBadge,
 )
 from services import (
     connected_login_methods_count,
@@ -58,11 +59,13 @@ from services import (
     _compute_bundle_alerts,
     fulfill_checkout,
     fulfill_gift,
+    get_featured_badge,
+    get_user_badges,
 )
 from routes import register_blueprints
 
 
-def create_app():
+def create_app(config_override=None):
     app = Flask(__name__)
     app.config["SECRET_KEY"] = config.SECRET_KEY
     app.config["SQLALCHEMY_DATABASE_URI"] = config.SQLALCHEMY_DATABASE_URI
@@ -78,6 +81,9 @@ def create_app():
     app.config["MAIL_USERNAME"] = config.MAIL_USERNAME
     app.config["MAIL_PASSWORD"] = config.MAIL_PASSWORD
     app.config["MAIL_DEFAULT_SENDER"] = config.MAIL_DEFAULT_SENDER
+
+    if config_override:
+        app.config.update(config_override)
 
     # Initialize extensions
     db.init_app(app)
@@ -96,7 +102,9 @@ def create_app():
             "Screenshot": Screenshot,
             "Video": Video,
             "Friendship": Friendship,
-            "cart_token": _generate_cart_token()
+            "cart_token": _generate_cart_token(),
+            "get_featured_badge": get_featured_badge,
+            "get_user_badges": get_user_badges,
         }
         if current_user.is_authenticated:
             try:
@@ -105,6 +113,12 @@ def create_app():
             except Exception as e:
                 print(f"DEBUG: Notification Fehler: {e}")
                 data["unread_count"] = 0
+
+            try:
+                data["current_user_featured_badge"] = get_featured_badge(current_user)
+            except Exception as e:
+                print(f"DEBUG: Featured badge error: {e}")
+                data["current_user_featured_badge"] = None
 
             try:
                 wishlist_ids = {
@@ -145,6 +159,7 @@ def create_app():
                 data["cart_count"] = 0
         else:
             data["unread_count"] = 0
+            data["current_user_featured_badge"] = None
             data["wishlist_ids"] = set()
             data["following_game_ids"] = set()
             # Guest cart lives in the Flask session as a list of game IDs
@@ -173,8 +188,20 @@ app = create_app()
 
 #initilaize the Database
 with app.app_context():
-    print("DEBUG: Prüfe Notification Table Spalten")
+    print("DEBUG: Prüfe Database Tables und Spalten")
     db.create_all()
+    try:
+        from sqlalchemy import text, inspect
+        inspector = inspect(db.engine)
+        if "user" in inspector.get_table_names():
+            columns = [c["name"] for c in inspector.get_columns("user")]
+            if "created_at" not in columns:
+                db.session.execute(text("ALTER TABLE user ADD COLUMN created_at DATETIME"))
+            if "featured_badge_key" not in columns:
+                db.session.execute(text("ALTER TABLE user ADD COLUMN featured_badge_key VARCHAR(50)"))
+            db.session.commit()
+    except Exception as e:
+        print(f"DEBUG: SQLite column check notice: {e}")
 
 
 if __name__ == "__main__":

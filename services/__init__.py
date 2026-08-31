@@ -31,6 +31,16 @@ from services.cart_service import (
     _compute_bundle_alerts,
 )
 from services.payment_service import fulfill_checkout, fulfill_gift
+from services.badge_service import (
+    get_all_badges,
+    get_badge_definition,
+    evaluate_eligible_badges,
+    sync_user_badges,
+    get_user_badges,
+    get_featured_badge,
+    set_featured_badge,
+    grant_manual_badge,
+)
 
 __all__ = [
     "connected_login_methods_count",
@@ -61,4 +71,12 @@ __all__ = [
     "_compute_bundle_alerts",
     "fulfill_checkout",
     "fulfill_gift",
+    "get_all_badges",
+    "get_badge_definition",
+    "evaluate_eligible_badges",
+    "sync_user_badges",
+    "get_user_badges",
+    "get_featured_badge",
+    "set_featured_badge",
+    "grant_manual_badge",
 ]

@@ -29,6 +29,8 @@ class User(UserMixin, db.Model):
     has_password = db.Column(db.Boolean, default=True)  # False for accounts that only ever used Google/Hack Club (random placeholder password)
     two_fa_enabled = db.Column(db.Boolean, default=True)  # user can turn the login code mail off on the settings page
     needs_username_setup = db.Column(db.Boolean, default=False)  # True right after a fresh Google signup, until they pick their own name
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    featured_badge_key = db.Column(db.String(50), nullable=True)  # badge key user chooses to showcase
     followed = db.relationship("User", secondary=Friendship.__table__,
                                primaryjoin=(Friendship.sender_id == id),
                                secondaryjoin=(Friendship.receiver_id == id),
@@ -78,3 +80,16 @@ class LoginOTP(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = db.relationship("User", backref="login_otps")
+
+
+class UserBadge(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    badge_key = db.Column(db.String(50), nullable=False, index=True)
+    unlocked_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    user = db.relationship("User", backref=db.backref("user_badges", cascade="all, delete-orphan", lazy="dynamic"))
+
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "badge_key", name="unique_user_badge"),
+    )

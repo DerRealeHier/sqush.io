@@ -104,6 +104,15 @@
                     <img src="{{ url_for('static', filename=u.profile_image) }}" class="friend-avatar" alt="{{ u.username }}">
                     <div class="friend-name">{{ u.username }}</div>
                     <span class="comic-role-badge mt-2 d-inline-block friend-role-badge">{{ u.role }}</span>
+                    {% set fb = get_featured_badge(u) %}
+                    {% if fb %}
+                    <br>
+                    <span class="friend-card-featured-badge"
+                          style="background-color: {{ fb.color }};"
+                          title="{{ fb.description }}">
+                        <i class="bi {{ fb.icon }}"></i> {{ fb.name }}
+                    </span>
+                    {% endif %}
                 </div>
             </a>
         </div>

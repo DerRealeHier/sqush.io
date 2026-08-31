@@ -1,4 +1,4 @@
-from models.user import Friendship, User, Notification, ProfileComment, LoginOTP
+from models.user import Friendship, User, Notification, ProfileComment, LoginOTP, UserBadge
 from models.game import (
     Game,
     GameUpdate,
@@ -21,6 +21,7 @@ __all__ = [
     "Notification",
     "ProfileComment",
     "LoginOTP",
+    "UserBadge",
     "Game",
     "GameUpdate",
     "UpdateComment",
