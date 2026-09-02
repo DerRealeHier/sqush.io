@@ -1608,51 +1608,84 @@ body.bundle-dashboard .bundle-stat-box small {
 
 /* ---- "All Badges" Modal styling ---- */
 .badge-modal-chip {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: 7px;
+    gap: 10px;
     font-family: 'Bangers', sans-serif;
-    font-size: 0.95rem;
+    font-size: 1rem;
     letter-spacing: 1px;
     text-transform: uppercase;
-    padding: 6px 16px;
+    padding: 10px 14px;
     border: 3px solid #000;
     box-shadow: 3px 3px 0px #000;
     color: #000;
     position: relative;
     width: 100%;
+    box-sizing: border-box;
+    transition: transform 0.1s;
+}
+.badge-modal-chip:not(.locked):hover {
+    transform: translateY(-1px);
+    box-shadow: 4px 4px 0px #000;
+}
+.badge-modal-chip .badge-icon-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: rgba(0,0,0,0.15);
+    border: 2px solid rgba(0,0,0,0.25);
+    flex-shrink: 0;
+    font-size: 1.3rem;
 }
 .badge-modal-chip.locked {
-    filter: grayscale(1) opacity(0.45);
+    filter: grayscale(1) opacity(0.4);
     cursor: not-allowed;
     box-shadow: 2px 2px 0px #000;
 }
-.badge-modal-chip.locked::after {
-    content: "\F4C1"; /* bi-lock-fill unicode */
-    font-family: "bootstrap-icons";
-    position: absolute;
-    right: 10px;
-    font-size: 1rem;
-    color: #555;
-}
+.badge-modal-chip.locked:hover { transform: none; box-shadow: 2px 2px 0px #000; }
 .badge-modal-chip .badge-modal-desc {
     font-family: 'Comic Neue', sans-serif;
-    font-size: 0.75rem;
+    font-size: 0.78rem;
     font-weight: 700;
-    color: #000;
+    color: rgba(0,0,0,0.7);
     display: block;
     text-transform: none;
     letter-spacing: 0;
+    margin-top: 1px;
+}
+.badge-modal-chip .badge-text-wrap {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    min-width: 0;
+}
+.badge-modal-chip .badge-name {
+    line-height: 1.1;
 }
 .badge-modal-chip .badge-tier-label {
-    font-size: 0.6rem;
+    font-size: 0.72rem;
     font-family: 'Bangers', sans-serif;
-    letter-spacing: 1px;
-    background: #000;
-    color: #fff;
-    padding: 1px 5px;
-    margin-left: auto;
+    letter-spacing: 1.5px;
+    padding: 2px 8px;
     flex-shrink: 0;
+    border: 2px solid rgba(0,0,0,0.4);
+    color: #000;
+    background: rgba(0,0,0,0.18);
+}
+/* tier colour overrides */
+.badge-tier-label[data-tier="legendary"] { background: #7c3aed; color: #fff; border-color: #4c1d95; }
+.badge-tier-label[data-tier="diamond"]   { background: #06b6d4; color: #fff; border-color: #0e7490; }
+.badge-tier-label[data-tier="gold"]      { background: #d97706; color: #fff; border-color: #92400e; }
+.badge-tier-label[data-tier="silver"]    { background: #6b7280; color: #fff; border-color: #374151; }
+.badge-tier-label[data-tier="bronze"]    { background: #92400e; color: #fff; border-color: #451a03; }
+.badge-tier-label[data-tier="special"]   { background: #db2777; color: #fff; border-color: #831843; }
+.badge-modal-chip .badge-check {
+    color: #000;
+    font-size: 1.15rem;
+    flex-shrink: 0;
+    opacity: 0.8;
 }
 #allBadgesModal .modal-content {
     background: var(--paper, #161616);

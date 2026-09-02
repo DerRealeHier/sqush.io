@@ -327,15 +327,17 @@
                 {% for key, defn in all_badges.items() %}
                 {% set is_unlocked = key in unlocked_keys %}
                 <div class="badge-modal-chip {% if not is_unlocked %}locked{% endif %}"
-                     style="background-color: {% if is_unlocked %}{{ defn.color }}{% else %}#555{% endif %};">
-                    <i class="bi {{ defn.icon }}" style="font-size:1.2rem; flex-shrink:0;"></i>
-                    <span class="d-flex flex-column flex-grow-1">
-                        <span>{{ defn.name }}</span>
+                     style="background-color: {% if is_unlocked %}{{ defn.color }}{% else %}#3a3a3a{% endif %};">
+                    <span class="badge-icon-wrap">
+                        <i class="bi {{ defn.icon }}"></i>
+                    </span>
+                    <span class="badge-text-wrap">
+                        <span class="badge-name">{{ defn.name }}</span>
                         <span class="badge-modal-desc">{{ defn.description }}</span>
                     </span>
-                    <span class="badge-tier-label">{{ defn.tier | upper }}</span>
+                    <span class="badge-tier-label" data-tier="{{ defn.tier | lower }}">{{ defn.tier | upper }}</span>
                     {% if is_unlocked %}
-                    <i class="bi bi-check-circle-fill ms-1" style="color:#000; font-size:1rem; flex-shrink:0;"></i>
+                    <i class="bi bi-check-circle-fill badge-check"></i>
                     {% endif %}
                 </div>
                 {% endfor %}
