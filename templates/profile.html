@@ -59,8 +59,11 @@
             Sqush
         </button>
         <ul class="dropdown-menu text-center comic-dropdown-menu" aria-labelledby="dropdownMenuButton">
+            {% if current_user.is_authenticated %}
             <li><a class="dropdown-item comic-dropdown-item" href="{{ url_for('profile', username=current_user.username) }}">My profile</a></li>
+            <li><a class="dropdown-item comic-dropdown-item" href="{{ url_for('messages.inbox') }}">Messages</a></li>
             <li><a class="dropdown-item comic-dropdown-item" href="{{ url_for('wishlist') }}">My Wishlist</a></li>
+            {% endif %}
             <li><a class="dropdown-item comic-dropdown-item" href="{{ url_for('library') }}">Library</a></li>
             {% if current_user.role == 'dev' %}
             <li><a class="dropdown-item comic-dropdown-item text-danger" href="/dashboard">Dev Dashboard</a></li>
@@ -75,6 +78,7 @@
             <a class="NavBar" href="{{ url_for('library') }}">LIBRARY</a>
             <a class="NavBar" href="/cart">CART <span class="badge bg-danger cart-count-badge {% if cart_count == 0 %}d-none{% endif %}">{{ cart_count }}</span></a>
             <a class="NavBar" href="/community">COMMUNITY</a>
+            <a class="NavBar" href="{{ url_for('messages.inbox') }}">MESSAGES {% if unread_messages_count > 0 %}<span class="badge bg-danger">{{ unread_messages_count }}</span>{% endif %}</a>
             <a class="NavBar" href="/settings">HELP</a>
         </div>
     </nav>
@@ -218,6 +222,9 @@
         </div>
 
         <div class="d-flex justify-content-center align-items-center gap-2 flex-wrap">
+            <a href="{{ url_for('messages.conversation', username=user.username) }}" class="btn-comic-message">
+                <i class="bi bi-chat-dots-fill"></i> MESSAGE {{ user.username|upper }}
+            </a>
             {% if not friend_request %}
             <a href="{{ url_for('send_request', user_id=user.id) }}" class="btn btn-comic text-white" style="background: var(--green,#33d17a);">
                 <i class="bi bi-person-plus-fill"></i> FRIEND REQUEST

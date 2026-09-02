@@ -1796,4 +1796,640 @@ body.bundle-dashboard .bundle-stat-box small {
 .badge-chip-wrap:nth-child(7)  { animation-delay: 0.21s; }
 .badge-chip-wrap:nth-child(8)  { animation-delay: 0.24s; }
 .badge-chip-wrap:nth-child(9)  { animation-delay: 0.27s; }
-.badge-chip-wrap:nth-child(10) { animation-delay: 0.30s; }
+.badge-chip-wrap:nth-child(10) { animation-delay: 0.30s; }
+
+
+/* ============================================================
+   MESSAGES PAGE
+   the whole inbox / chat thread experience
+   ============================================================ */
+
+/* ---- Layout ---- */
+
+.messages-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* ---- Sidebar ---- */
+
+.conversations-sidebar {
+    background: var(--paper, #161616);
+    border: 4px solid #000;
+    box-shadow: 8px 8px 0px #000;
+    padding: 20px;
+}
+
+.sidebar-header h2 {
+    font-family: 'Bangers', sans-serif;
+    font-size: 2rem;
+    letter-spacing: 2px;
+    color: var(--yellow, #ffe14d);
+    text-shadow: 3px 3px 0px #000;
+    text-transform: uppercase;
+    margin-bottom: 0;
+}
+
+/* search box to start a new chat */
+.start-chat-form .form-control {
+    background: #000;
+    color: var(--green, #33d17a);
+    border: 3px solid #fff;
+    border-radius: 0;
+    font-family: 'Comic Neue', sans-serif;
+    font-weight: 700;
+    box-shadow: 3px 3px 0px #000;
+}
+
+.start-chat-form .form-control::placeholder {
+    color: #444;
+}
+
+.start-chat-form .form-control:focus {
+    background: #000;
+    color: var(--green, #33d17a);
+    border-color: var(--yellow, #ffe14d);
+    box-shadow: 3px 3px 0px var(--yellow, #ffe14d);
+    outline: none;
+}
+
+.start-chat-form .btn {
+    background: var(--blue, #3aa0ff);
+    color: #000;
+    font-family: 'Bangers', sans-serif;
+    letter-spacing: 1px;
+    font-size: 1rem;
+    border: 3px solid #000;
+    border-radius: 0;
+    box-shadow: 3px 3px 0px #000;
+    text-transform: uppercase;
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.start-chat-form .btn:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 5px 5px 0px #000;
+    background: var(--yellow, #ffe14d);
+    color: #000;
+}
+
+/* individual conversation row */
+.conversation-item {
+    background: var(--paper, #161616);
+    border: 3px solid #333 !important;
+    border-radius: 0 !important;
+    padding: 12px 14px !important;
+    margin-bottom: 6px;
+    color: #fff !important;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+    display: block;
+    box-shadow: 4px 4px 0px #000;
+    text-decoration: none;
+}
+
+.conversation-item:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0px #000;
+    background: #252525 !important;
+    color: #fff !important;
+}
+
+/* active conversation has a yellow left stripe */
+.conversation-item.active {
+    border-left: 5px solid var(--yellow, #ffe14d) !important;
+    background: #222 !important;
+    color: #fff !important;
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0px #000;
+}
+
+.conversation-avatar {
+    border: 3px solid #fff;
+    box-shadow: 3px 3px 0px #000;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.conversation-username {
+    font-family: 'Bangers', sans-serif;
+    font-size: 1.15rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #fff;
+}
+
+.conversation-preview {
+    color: #888;
+    font-family: 'Comic Neue', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 700;
+    display: block;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.conversation-time {
+    font-size: 0.7rem;
+    color: #666;
+    font-family: 'Comic Neue', sans-serif;
+    font-weight: 700;
+}
+
+/* no conversations at all */
+.no-conversations-placeholder {
+    font-family: 'Comic Neue', sans-serif;
+    font-weight: 700;
+    color: #555;
+    font-size: 0.9rem;
+    padding: 20px;
+    border: 2px dashed #333;
+    text-align: center;
+    margin-top: 10px;
+}
+
+/* ---- Active Chat Thread Area ---- */
+
+.chat-thread-box {
+    background: var(--paper, #161616);
+    border: 4px solid #000 !important;
+    box-shadow: 8px 8px 0px #000;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 500px;
+}
+
+/* ---- Thread Header ---- */
+
+.thread-header {
+    padding: 16px 20px;
+    border-bottom: 3px solid #000 !important;
+    background: #111;
+}
+
+.thread-header .rounded-circle {
+    border: 3px solid #fff;
+    box-shadow: 3px 3px 0px #000;
+}
+
+.thread-header a.fw-bold {
+    font-family: 'Bangers', sans-serif;
+    font-size: 1.4rem;
+    letter-spacing: 1px;
+    color: var(--yellow, #ffe14d);
+    text-transform: uppercase;
+    text-shadow: 2px 2px 0px #000;
+    text-decoration: none;
+}
+
+.thread-header a.fw-bold:hover {
+    color: #fff;
+}
+
+/* DEV badge inside the thread header */
+.thread-header .badge.bg-danger {
+    background: var(--red, #ff3b30) !important;
+    border: 2px solid #000;
+    box-shadow: 2px 2px 0px #000;
+    font-family: 'Bangers', sans-serif;
+    letter-spacing: 1px;
+    font-size: 0.85rem;
+    border-radius: 0 !important;
+    padding: 4px 10px !important;
+}
+
+/* View Profile button in thread header */
+.thread-actions .btn-outline-secondary {
+    background: transparent;
+    color: #fff;
+    border: 2px solid #fff;
+    border-radius: 0;
+    font-family: 'Bangers', sans-serif;
+    letter-spacing: 1px;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    box-shadow: 3px 3px 0px #000;
+    transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.1s ease, color 0.1s ease;
+}
+
+.thread-actions .btn-outline-secondary:hover {
+    background: var(--yellow, #ffe14d);
+    color: #000;
+    border-color: #000;
+    transform: translate(-2px, -2px);
+    box-shadow: 5px 5px 0px #000;
+}
+
+/* ---- Game Context Banner ---- */
+
+.game-context-banner {
+    background: #0d0d0d !important;
+    border: 3px solid var(--blue, #3aa0ff) !important;
+    border-radius: 0 !important;
+    box-shadow: 5px 5px 0px #000;
+    margin: 12px 16px;
+    padding: 10px 16px !important;
+    color: #fff !important;
+    font-family: 'Comic Neue', sans-serif;
+    font-weight: 700;
+    position: relative;
+}
+
+/* little comic tag tab on the left side of the banner */
+.game-context-banner::before {
+    content: "GAME";
+    position: absolute;
+    left: -3px;
+    top: -14px;
+    background: var(--blue, #3aa0ff);
+    color: #000;
+    font-family: 'Bangers', sans-serif;
+    font-size: 0.65rem;
+    letter-spacing: 1.5px;
+    padding: 1px 8px;
+    border: 2px solid #000;
+    box-shadow: 2px 2px 0px #000;
+}
+
+.game-context-banner a {
+    color: var(--blue, #3aa0ff);
+    font-family: 'Bangers', sans-serif;
+    letter-spacing: 1px;
+    font-size: 1.1rem;
+    text-transform: uppercase;
+    text-decoration: none;
+}
+
+.game-context-banner a:hover {
+    color: #fff;
+}
+
+/* ---- Message Stream ---- */
+
+.messages-stream {
+    padding: 16px 20px;
+    flex: 1;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+    /* custom scrollbar to fit the dark theme */
+    scrollbar-width: thin;
+    scrollbar-color: #333 #0d0d0d;
+}
+
+.messages-stream::-webkit-scrollbar {
+    width: 6px;
+}
+
+.messages-stream::-webkit-scrollbar-track {
+    background: #0d0d0d;
+}
+
+.messages-stream::-webkit-scrollbar-thumb {
+    background: #333;
+    border: 1px solid #000;
+}
+
+/* ---- Message Bubbles ---- */
+
+.message-row {
+    margin-bottom: 16px;
+}
+
+.message-bubble {
+    position: relative;
+    font-family: 'Comic Neue', sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    border-radius: 0 !important;
+    max-width: 75%;
+    padding: 10px 14px !important;
+}
+
+/* sent by current user — right aligned, blue ink look */
+.message-row.justify-content-end .message-bubble {
+    background: var(--blue, #3aa0ff) !important;
+    color: #000 !important;
+    border: 3px solid #000;
+    box-shadow: 4px 4px 0px #000;
+}
+
+/* speech bubble tail pointing right */
+.message-row.justify-content-end .message-bubble::after {
+    content: "";
+    position: absolute;
+    right: -14px;
+    bottom: 10px;
+    width: 0;
+    height: 0;
+    border-top: 10px solid transparent;
+    border-bottom: 4px solid transparent;
+    border-left: 14px solid #000;
+}
+
+.message-row.justify-content-end .message-bubble::before {
+    content: "";
+    position: absolute;
+    right: -10px;
+    bottom: 12px;
+    width: 0;
+    height: 0;
+    border-top: 8px solid transparent;
+    border-bottom: 3px solid transparent;
+    border-left: 11px solid var(--blue, #3aa0ff);
+    z-index: 1;
+}
+
+/* received from partner — left aligned, white paper look */
+.message-row.justify-content-start .message-bubble {
+    background: #f0f0f0 !important;
+    color: #000 !important;
+    border: 3px solid #000;
+    box-shadow: 4px 4px 0px #000;
+}
+
+/* speech bubble tail pointing left */
+.message-row.justify-content-start .message-bubble::after {
+    content: "";
+    position: absolute;
+    left: -14px;
+    bottom: 10px;
+    width: 0;
+    height: 0;
+    border-top: 10px solid transparent;
+    border-bottom: 4px solid transparent;
+    border-right: 14px solid #000;
+}
+
+.message-row.justify-content-start .message-bubble::before {
+    content: "";
+    position: absolute;
+    left: -10px;
+    bottom: 12px;
+    width: 0;
+    height: 0;
+    border-top: 8px solid transparent;
+    border-bottom: 3px solid transparent;
+    border-right: 11px solid #f0f0f0;
+    z-index: 1;
+}
+
+/* message sender name */
+.message-sender {
+    font-family: 'Bangers', sans-serif;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+/* timestamp and status */
+.message-time,
+.message-status {
+    font-family: 'Comic Neue', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 700;
+    opacity: 0.7;
+}
+
+/* game inquiry tag inside message bubble */
+.message-game-tag {
+    background: #000 !important;
+    color: var(--yellow, #ffe14d) !important;
+    font-family: 'Bangers', sans-serif !important;
+    letter-spacing: 1px;
+    font-size: 0.7rem !important;
+    border-radius: 0 !important;
+    padding: 2px 8px !important;
+    border: 1px solid var(--yellow, #ffe14d);
+    text-transform: uppercase;
+}
+
+/* trash delete button inside bubble */
+.message-footer .btn-link {
+    opacity: 0.5;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    text-decoration: none;
+}
+
+.message-footer .btn-link:hover {
+    opacity: 1;
+    transform: scale(1.2);
+}
+
+/* no messages in this thread yet */
+.no-messages-placeholder {
+    font-family: 'Comic Neue', sans-serif;
+    font-weight: 700;
+    color: #444;
+    font-size: 1rem;
+    padding: 40px 20px;
+    border: 2px dashed #333;
+    text-align: center;
+    margin: 20px 0;
+}
+
+/* ---- Compose Area ---- */
+
+.message-compose-form {
+    padding: 14px 20px 18px;
+    border-top: 3px solid #000 !important;
+    background: #111;
+}
+
+.message-compose-form textarea {
+    background: #000;
+    color: var(--green, #33d17a);
+    border: 3px solid #fff;
+    border-radius: 0;
+    font-family: 'Comic Neue', sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    box-shadow: 3px 3px 0px #000;
+    resize: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.message-compose-form textarea::placeholder {
+    color: #2f7a4f;
+}
+
+.message-compose-form textarea:focus {
+    background: #000;
+    color: var(--green, #33d17a);
+    border-color: var(--yellow, #ffe14d);
+    box-shadow: 3px 3px 0px var(--yellow, #ffe14d);
+    outline: none;
+}
+
+/* the SEND button */
+.message-compose-form .btn-primary {
+    background: var(--green, #33d17a) !important;
+    border: 4px solid #000 !important;
+    border-radius: 0 !important;
+    color: #000 !important;
+    font-family: 'Bangers', sans-serif !important;
+    font-size: 1.2rem !important;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    box-shadow: 5px 5px 0px #000;
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+    white-space: nowrap;
+    align-self: flex-end;
+    padding: 6px 22px !important;
+}
+
+.message-compose-form .btn-primary:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 7px 7px 0px #000;
+    background: var(--yellow, #ffe14d) !important;
+    color: #000 !important;
+}
+
+.message-compose-form .btn-primary:active {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0px #000;
+}
+
+/* ---- Empty State (No Active Conversation Selected) ---- */
+
+.no-active-chat {
+    background: var(--paper, #161616);
+    border: 4px solid #000 !important;
+    box-shadow: 8px 8px 0px #000;
+    border-radius: 0 !important;
+    padding: 60px 40px !important;
+    text-align: center;
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.no-active-chat h3 {
+    font-family: 'Bangers', sans-serif;
+    font-size: 2.2rem;
+    letter-spacing: 2px;
+    color: var(--yellow, #ffe14d);
+    text-shadow: 3px 3px 0px #000;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+}
+
+.no-active-chat p {
+    font-family: 'Comic Neue', sans-serif;
+    font-weight: 700;
+    color: #666;
+    font-size: 1rem;
+    max-width: 320px;
+    border: 2px dashed #333;
+    padding: 14px;
+}
+
+/* ---- Flash Messages ---- */
+
+.messages-flash-container .alert {
+    border: 3px solid #000;
+    border-radius: 0;
+    box-shadow: 4px 4px 0px #000;
+    font-family: 'Comic Neue', sans-serif;
+    font-weight: 700;
+}
+
+/* ---- Message Buttons on Profile, Community, Game Detail ---- */
+
+/* MESSAGE button on profile page — blue, comic push style */
+.btn-comic-message {
+    background: var(--blue, #3aa0ff);
+    color: #000;
+    font-family: 'Bangers', sans-serif;
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border: 4px solid #000;
+    box-shadow: 5px 5px 0px #000;
+    padding: 8px 20px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.1s ease;
+}
+
+.btn-comic-message:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 7px 7px 0px #000;
+    background: var(--yellow, #ffe14d);
+    color: #000;
+}
+
+.btn-comic-message:active {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0px #000;
+}
+
+/* MESSAGE in community card — inherits btn-sm size but adds comic borders */
+.friend-card + div .btn.btn-sm.btn-primary {
+    background: var(--blue, #3aa0ff);
+    border: 3px solid #000;
+    border-radius: 0;
+    box-shadow: 3px 3px 0px #000;
+    color: #000;
+    font-family: 'Bangers', sans-serif;
+    letter-spacing: 1px;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.1s ease;
+}
+
+.friend-card + div .btn.btn-sm.btn-primary:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 5px 5px 0px #000;
+    background: var(--yellow, #ffe14d);
+    color: #000;
+    border-color: #000;
+}
+
+/* MESSAGE DEV button on game detail page — cyan outline style */
+.btn-outline-info.btn-comic {
+    border: 3px solid #000 !important;
+    background: #00bcd4 !important;
+    color: #000 !important;
+    box-shadow: 4px 4px 0px #000;
+    transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.1s ease;
+}
+
+.btn-outline-info.btn-comic:hover {
+    background: var(--yellow, #ffe14d) !important;
+    color: #000 !important;
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0px #000;
+}
+
+/* ---- Responsive stacking for small screens ---- */
+
+@media (max-width: 768px) {
+    .chat-thread-box {
+        min-height: 400px;
+    }
+
+    .messages-stream {
+        max-height: 320px !important;
+    }
+
+    .message-bubble {
+        max-width: 90%;
+    }
+
+    .no-active-chat {
+        padding: 30px 20px !important;
+    }
+
+    .conversations-sidebar {
+        margin-bottom: 20px;
+    }
+}

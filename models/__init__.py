@@ -14,6 +14,7 @@ from models.game import (
 from models.commerce import Purchase, Wishlist, CartItem, Gift
 from models.bundle import Bundle, BundleGame, BundleCollaborator
 from models.collection import Collection, CollectionGame
+from models.message import DirectMessage
 
 __all__ = [
     "Friendship",
@@ -41,4 +42,5 @@ __all__ = [
     "BundleCollaborator",
     "Collection",
     "CollectionGame",
+    "DirectMessage",
 ]

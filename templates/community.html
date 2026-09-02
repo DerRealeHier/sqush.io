@@ -65,6 +65,7 @@
         <ul class="dropdown-menu text-center comic-dropdown-menu" aria-labelledby="dropdownMenuButton">
             {% if current_user.is_authenticated %}
             <li><a class="dropdown-item comic-dropdown-item" href="{{ url_for('profile', username=current_user.username) }}">My profile</a></li>
+            <li><a class="dropdown-item comic-dropdown-item" href="{{ url_for('messages.inbox') }}">Messages</a></li>
             <li><a class="dropdown-item comic-dropdown-item" href="{{ url_for('wishlist') }}">My Wishlist</a></li>
             {% endif %}
             <li><a class="dropdown-item comic-dropdown-item" href="{{ url_for('library') }}">Library</a></li>
@@ -81,6 +82,7 @@
             <a class="NavBar" href="{{ url_for('library') }}">LIBRARY</a>
             <a class="NavBar" href="/cart">CART <span class="badge bg-danger cart-count-badge {% if cart_count == 0 %}d-none{% endif %}">{{ cart_count }}</span></a>
             <a class="NavBar" href="/community">COMMUNITY</a>
+            <a class="NavBar" href="{{ url_for('messages.inbox') }}">MESSAGES {% if unread_messages_count > 0 %}<span class="badge bg-danger">{{ unread_messages_count }}</span>{% endif %}</a>
             <a class="NavBar" href="/settings">HELP</a>
         </div>
     </nav>
@@ -97,7 +99,7 @@
 
     <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
         {% for u in users %}
-        <div class="col">
+        <div class="col text-center">
             <a href="{{ url_for('profile', username=u.username) }}" class="text-decoration-none">
                 <div class="friend-card">
                     <div class="halftone-corner"></div>
@@ -115,6 +117,13 @@
                     {% endif %}
                 </div>
             </a>
+            {% if current_user.is_authenticated and current_user.id != u.id %}
+            <div class="mt-2">
+                <a href="{{ url_for('messages.conversation', username=u.username) }}" class="btn-comic-message">
+                    <i class="bi bi-chat-dots-fill"></i> MESSAGE
+                </a>
+            </div>
+            {% endif %}
         </div>
         {% else %}
         <div class="col-12 text-center">

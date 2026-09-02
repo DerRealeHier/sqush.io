@@ -58,6 +58,7 @@
         </button>
         <ul class="dropdown-menu text-center comic-dropdown-menu" aria-labelledby="dropdownMenuButton">
             <li><a class="dropdown-item comic-dropdown-item" href="{{ url_for('profile', username=current_user.username) }}">My profile</a></li>
+            <li><a class="dropdown-item comic-dropdown-item" href="{{ url_for('messages.inbox') }}">Messages</a></li>
             <li><a class="dropdown-item comic-dropdown-item" href="{{ url_for('wishlist') }}">My Wishlist</a></li>
             <li><a class="dropdown-item comic-dropdown-item" href="{{ url_for('library') }}">Library</a></li>
             {% if current_user.role == 'dev' %}
@@ -73,6 +74,9 @@
             <a class="NavBar" href="{{ url_for('library') }}">LIBRARY</a>
             <a class="NavBar" href="/cart">CART <span class="badge bg-danger cart-count-badge {% if cart_count == 0 %}d-none{% endif %}">{{ cart_count }}</span></a>
             <a class="NavBar" href="/community">COMMUNITY</a>
+            {% if current_user.is_authenticated %}
+            <a class="NavBar" href="{{ url_for('messages.inbox') }}">MESSAGES {% if unread_messages_count > 0 %}<span class="badge bg-danger">{{ unread_messages_count }}</span>{% endif %}</a>
+            {% endif %}
             <a class="NavBar" href="/settings">HELP</a>
         </div>
     </nav>

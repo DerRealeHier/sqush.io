@@ -279,6 +279,10 @@ def read_notification(notif_id):
         return redirect(url_for('updates_feed'))
     elif notif.type == "gift_received":
         return redirect(url_for('library'))
+    elif notif.type == "direct_message":
+        # they got mail (: takes them right to the chat
+        sender_name = notif.message.split(" ")[0]
+        return redirect(url_for("messages.conversation", username=sender_name))
 
     return redirect(url_for("profile", username=current_user.username))
 

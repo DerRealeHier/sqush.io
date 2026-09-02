@@ -29,6 +29,7 @@ from models import (
     CollectionGame,
     Gift,
     UserBadge,
+    DirectMessage,
 )
 from services import (
     connected_login_methods_count,
@@ -157,8 +158,18 @@ def create_app(config_override=None):
                 print(f"DEBUG: Cart Fehler: {e}")
                 data["cart_ids"] = set()
                 data["cart_count"] = 0
+
+            # how many unread dms we got (:
+            try:
+                data["unread_messages_count"] = DirectMessage.query.filter_by(
+                    recipient_id=current_user.id, is_read=False
+                ).count()
+            except Exception as e:
+                print(f"DEBUG: DirectMessage count error: {e}")
+                data["unread_messages_count"] = 0
         else:
             data["unread_count"] = 0
+            data["unread_messages_count"] = 0
             data["current_user_featured_badge"] = None
             data["wishlist_ids"] = set()
             data["following_game_ids"] = set()
