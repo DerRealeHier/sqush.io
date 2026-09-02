@@ -1,10 +1,10 @@
 # sqush.io
 
-**sqush.io** is an open-source indie game store platform. Think itch.io, but with a better user experience and more fun to use. Developers can publish and sell their games, players can browse, buy, review and gift games, and everyone can connect socially.
+**sqush.io** is an open source indie game store platform. Think itch.io, but with a better user experience and more fun to use. Developers can publish and sell their games, players can browse, buy, review, gift games and message each other or game developers, and everyone can connect socially.
 
 ---
 
-##  Features
+## Features
 
 | Category | Features                                                                                           |
 |---|----------------------------------------------------------------------------------------------------|
@@ -15,6 +15,7 @@
 | **Bundles** | Multi-game bundles with collaborator roles, bundle-specific pricing                                |
 | **Library** | Owned games, download game files, playtime tracking                                                |
 | **Social** | Friends, profile pages, profile comments, notifications, collections                               |
+| **Messaging** | Direct messaging (user-to-user & user-to-dev), conversation threads, game inquiries, unread badges  |
 | **Developer** | Dashboard, upload game files (ZIP/EXE), sales/revenue analytics, game stats                        |
 | **Security** | Rate limiting, ClamAV malware scanning for uploaded files                                          |
 | **Badges** | User badge system with featured badge on profile                                                   |
@@ -48,7 +49,8 @@ sqush.io/
 │   ├── game.py         # Game, Screenshot, Video, Review, ReviewVote, GameUpdate, GameStats, …
 │   ├── commerce.py     # Purchase, Wishlist, CartItem, Gift
 │   ├── bundle.py       # Bundle, BundleGame, BundleCollaborator
-│   └── collection.py   # Collection, CollectionGame
+│   ├── collection.py   # Collection, CollectionGame
+│   └── message.py      # DirectMessage (user-to-user & user-to-dev inquiries)
 ├── routes/
 │   ├── auth.py         # Register, login, logout, OAuth (Google, Hack Club), 2FA
 │   ├── main.py         # Home, store, game detail pages
@@ -56,7 +58,8 @@ sqush.io/
 │   ├── checkout.py     # Stripe checkout, webhooks, gifting
 │   ├── library.py      # User library, downloads
 │   ├── social.py       # Profiles, friends, collections, notifications
-│   └── developer.py    # Developer dashboard, game upload/edit, analytics
+│   ├── developer.py    # Developer dashboard, game upload/edit, analytics
+│   └── messages.py     # Direct messaging, inbox, conversation threads, unread counters
 ├── services/
 │   ├── auth_service.py   # load_user, login helpers
 │   ├── badge_service.py  # Badge award logic
@@ -214,7 +217,7 @@ flask db downgrade
 
 ---
 
-##  Contributing
+## Contributing
 
 1. Fork the repo and create a feature branch.
 2. Follow the existing code style.
@@ -222,6 +225,6 @@ flask db downgrade
 
 ---
 
-##  License
+## License
 
 This project is licensed under the terms of the [LICENSE](LICENSE) file included in this repository.
