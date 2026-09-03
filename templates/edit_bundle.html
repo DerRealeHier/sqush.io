@@ -173,7 +173,7 @@
 
                             {% for game in my_games %}
                             <option value="{{ game.id }}">
-                                {{ game.title }} — {{ "%.2f"|format(game.price) }}€
+                                {{ game.title }} - {{ "%.2f"|format(game.price) }}€
                             </option>
                             {% endfor %}
                         </select>
@@ -278,10 +278,10 @@
                         <label>Permission Role</label>
                         <select class="form-select" name="role">
                             <option value="contributor">
-                                Contributor — Can add games
+                                Contributor - Can add games
                             </option>
                             <option value="manager">
-                                Manager — Can add games and invite developers
+                                Manager - Can add games and invite developers
                             </option>
                         </select>
                     </div>

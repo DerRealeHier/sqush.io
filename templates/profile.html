@@ -233,7 +233,7 @@
 
             {% else %}
             <div class="no-badges-placeholder d-inline-block mt-2">
-                <i class="bi bi-question-diamond me-1"></i> No badges yet — play, buy, connect!
+                <i class="bi bi-question-diamond me-1"></i> No badges yet - play, buy, connect!
             </div>
             {% endif %}
         </div>
@@ -419,7 +419,7 @@
 <script src="{{ url_for('static', filename='JS/script.js') }}"></script>
 <script>window.squshCartToken = "{{ cart_token }}";</script>
 <script>
-/* AJAX Badge Feature Toggle — no full page reload */
+/* AJAX Badge Feature Toggle - no full page reload */
 document.querySelectorAll('.badge-feature-form').forEach(function(form) {
     form.addEventListener('submit', function(e) {
         e.preventDefault();

@@ -292,7 +292,7 @@
                 <p class="mb-0 fw-bold">
                     You have {% for g in alert.overlap_games %}<strong>{{ g.title }}</strong>{% if not loop.last %}, {% endif %}{% endfor %} in your cart.
                     The <strong>{{ alert.bundle.title }}</strong> bundle includes these (and more!) for
-                    <strong>{{ "%.2f"|format(alert.bundle.display_price) }}€</strong> —
+                    <strong>{{ "%.2f"|format(alert.bundle.display_price) }}€</strong> -
                     that's <strong style="color:#e91e63;">{{ "%.2f"|format(alert.savings) }}€ cheaper</strong>!
                 </p>
             </div>

@@ -343,7 +343,7 @@
             </form>
             {% else %}
             <p class="mb-3">
-                Status: <span class="status-pill status-off">not set</span> —
+                Status: <span class="status-pill status-off">not set</span> -
                 you currently only sign in through a connected account below.
             </p>
             <form method="POST" action="{{ url_for('set_password') }}">
@@ -419,10 +419,10 @@
             <h3 class="settings-card-title">Two-Factor Authentication</h3>
             <p class="mb-3">
                 {% if current_user.two_fa_enabled %}
-                Status: <span class="status-pill status-on">enabled</span> —
+                Status: <span class="status-pill status-on">enabled</span> -
                 you'll get a login code by email every time you sign in with your password.
                 {% else %}
-                Status: <span class="status-pill status-off">disabled</span> —
+                Status: <span class="status-pill status-off">disabled</span> -
                 you sign in with just your password.
                 {% endif %}
             </p>

@@ -291,12 +291,12 @@
                 {% if current_user.is_authenticated %}
                 <button class="wishlist-btn large {% if game.id in wishlist_ids %}active{% endif %}"
                         data-game-id="{{ game.id }}"
-                        title="Zur Wishlist hinzufügen">
+                        title="Add to Wishlist">
                     <i class="bi {% if game.id in wishlist_ids %}bi-heart-fill{% else %}bi-heart{% endif %}"></i>
                 </button>
                 <button class="wishlist-btn large follow-game-btn {% if is_following %}active{% endif %}"
                         data-game-id="{{ game.id }}"
-                        title="Updates zu diesem Spiel abonnieren">
+                        title="Follow game updates">
                     <i class="bi {% if is_following %}bi-bell-fill{% else %}bi-bell{% endif %}"></i>
                 </button>
                 {% endif %}
@@ -339,11 +339,11 @@
                         class="btn btn-warning btn-lg px-4 py-3 btn-comic tip-jar-trigger-btn"
                         data-bs-toggle="modal"
                         data-bs-target="#tipJarModal"
-                        title="Spendiere {{ game.user.username }} ein Trinkgeld (2€, 5€...)">
+                        title="Tip {{ game.user.username }} (2€, 5€...)">
                     <i class="bi bi-cup-hot-fill"></i> TIP DEV
                 </button>
                 {% else %}
-                <div class="tip-jar-dev-badge" title="Dein Tip Jar für dieses Spiel">
+                <div class="tip-jar-dev-badge" title="Your Tip Jar for this game">
                     <i class="bi bi-cup-hot-fill text-warning"></i>
                     <span>{{ "%.2f"|format(total_tips or 0.0) }}€ Tips ({{ tips_count or 0 }})</span>
                 </div>
@@ -393,15 +393,15 @@
 
                 {% if current_user.is_authenticated %}
                 <form action="{{ url_for('comment_update', update_id=update.id) }}" method="POST" class="mt-3">
-                    <textarea name="content" class="form-control mb-2" placeholder="Kommentar schreiben..." required></textarea>
-                    <button type="submit" class="btn btn-comic text-white btn-sm">Kommentieren</button>
+                    <textarea name="content" class="form-control mb-2" placeholder="Write a comment..." required></textarea>
+                    <button type="submit" class="btn btn-comic text-white btn-sm">Post Comment</button>
                 </form>
                 {% endif %}
             </div>
         </div>
     </div>
     {% else %}
-    <p class="text-white-50">Noch keine Updates für dieses Spiel.</p>
+    <p class="text-white-50">No updates yet for this game.</p>
     {% endfor %}
 </div>
 
@@ -470,9 +470,9 @@
     <div class="comic-frame p-4">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
             <h2 class="text-warning mb-0"><i class="bi bi-cup-hot-fill"></i> TIP JAR SUPPORTERS ({{ tips_count }})</h2>
-            <span class="badge bg-warning text-dark fs-5 comic-font py-2 px-3 border border-dark border-2">{{ "%.2f"|format(total_tips) }}€ GESPENDET</span>
+            <span class="badge bg-warning text-dark fs-5 comic-font py-2 px-3 border border-dark border-2">{{ "%.2f"|format(total_tips) }}€ TIPPED</span>
         </div>
-        <p class="text-light fs-5 mb-4">Ein riesiges Dankeschön an alle, die <strong>{{ game.user.username }}</strong> für dieses Spiel unterstützt haben! (:</p>
+        <p class="text-light fs-5 mb-4">A huge thank you to everyone who supported <strong>{{ game.user.username }}</strong> for this game! (:</p>
         <div class="row g-3">
             {% for tip in recent_tips %}
             <div class="col-md-4 col-sm-6">
@@ -504,17 +504,17 @@
                     </div>
                     <div>
                         <h4 class="modal-title comic-font text-warning mb-0" id="tipJarModalLabel">DEV TIP JAR</h4>
-                        <small class="text-white-50">Support für <strong>{{ game.user.username }}</strong> &bull; <em>{{ game.title }}</em></small>
+                        <small class="text-white-50">Support for <strong>{{ game.user.username }}</strong> &bull; <em>{{ game.title }}</em></small>
                     </div>
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body comic-modal-body pt-3">
                 <p class="fs-6 text-light mb-3">
-                    Hat dir <strong>{{ game.title }}</strong> gefallen? Wirf ein bisschen Extra-Cash in den Tip Jar des Developers! (:
+                    Enjoyed <strong>{{ game.title }}</strong>? Drop some extra cash into the developer's Tip Jar! (:
                 </p>
 
-                <label class="comic-label mb-2">Wähle deinen Betrag:</label>
+                <label class="comic-label mb-2">Choose amount:</label>
                 <div class="tip-pills-wrapper d-flex gap-2 mb-3 flex-wrap">
                     <button type="button" class="btn btn-comic tip-pill-btn" data-amount="2.00">
                         2,00 €
@@ -526,50 +526,50 @@
                         10,00 €
                     </button>
                     <button type="button" class="btn btn-comic tip-pill-btn" data-amount="custom">
-                        Anderer Betrag
+                        Custom amount
                     </button>
                 </div>
 
                 <div id="customTipContainer" class="mb-3 d-none">
-                    <label class="comic-label mb-1">Eigener Betrag in €:</label>
+                    <label class="comic-label mb-1">Custom amount in €:</label>
                     <div class="input-group">
                         <span class="input-group-text comic-input-addon">€</span>
-                        <input type="number" id="customTipInput" class="form-control comic-input" min="1.00" max="500.00" step="0.50" placeholder="z.B. 3.00">
+                        <input type="number" id="customTipInput" class="form-control comic-input" min="1.00" max="500.00" step="0.50" placeholder="e.g. 3.00">
                     </div>
-                    <small class="text-white-50">Mindestbetrag: 1,00 €</small>
+                    <small class="text-white-50">Minimum amount: 1.00 €</small>
                 </div>
 
                 {% if not current_user.is_authenticated %}
                 <div class="mb-3">
-                    <label class="comic-label mb-1">Dein Name oder Nickname (optional):</label>
-                    <input type="text" id="supporterNameInput" class="form-control comic-input" placeholder="z.B. Ein treuer Fan">
+                    <label class="comic-label mb-1">Your name or nickname (optional):</label>
+                    <input type="text" id="supporterNameInput" class="form-control comic-input" placeholder="e.g. A loyal fan">
                 </div>
                 {% else %}
                 <div class="mb-2">
                     <small class="text-white-50">
-                        <i class="bi bi-person-check-fill text-success"></i> Spenden als: <strong class="text-warning">{{ current_user.username }}</strong>
+                        <i class="bi bi-person-check-fill text-success"></i> Tipping as: <strong class="text-warning">{{ current_user.username }}</strong>
                     </small>
                 </div>
                 {% endif %}
 
                 <div class="mb-3">
-                    <label class="comic-label mb-1">Nachricht an {{ game.user.username }} (optional):</label>
-                    <textarea id="tipMessageInput" class="form-control comic-input" rows="2" maxlength="500" placeholder="Liebe dein Spiel! Weiter so (:"></textarea>
+                    <label class="comic-label mb-1">Message to {{ game.user.username }} (optional):</label>
+                    <textarea id="tipMessageInput" class="form-control comic-input" rows="2" maxlength="500" placeholder="Love your game! Keep it up (:"></textarea>
                 </div>
 
                 <div id="tipErrorAlert" class="alert alert-danger d-none comic-alert py-2 mb-3"></div>
 
                 <button type="button" id="submitTipBtn" class="btn btn-warning w-100 py-3 btn-comic tip-submit-btn" data-game-id="{{ game.id }}">
-                    <i class="bi bi-heart-fill me-1"></i> TIP 5,00 € SENDEN
+                    <i class="bi bi-heart-fill me-1"></i> SEND 5.00 € TIP
                 </button>
 
                 <div class="text-center mt-2">
-                    <small class="text-white-50"><i class="bi bi-shield-lock-fill"></i> Sichere Bezahlung über Stripe</small>
+                    <small class="text-white-50"><i class="bi bi-shield-lock-fill"></i> Secure payment via Stripe</small>
                 </div>
 
                 {% if recent_tips and recent_tips|length > 0 %}
                 <div class="recent-tips-drawer mt-4 p-3">
-                    <h6 class="comic-font text-warning mb-2"><i class="bi bi-stars"></i> LETZTE SPENDER FÜR DIESES SPIEL</h6>
+                    <h6 class="comic-font text-warning mb-2"><i class="bi bi-stars"></i> RECENT SUPPORTERS FOR THIS GAME</h6>
                     <div class="d-flex flex-column gap-2">
                         {% for t in recent_tips %}
                         <div class="recent-tip-item d-flex justify-content-between align-items-center">

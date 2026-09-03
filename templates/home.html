@@ -159,11 +159,11 @@
         <div class="col-md-4">
             <div class="home-sale-card game-card" data-video-type="{% if game.video_path %}{% if game.video_path.startswith('youtube:') %}youtube{% else %}local{% endif %}{% else %}none{% endif %}" data-yt-id="yt-rec-{{ game.id }}">
                 {% if game.id in wishlist_ids %}
-                <button class="wishlist-btn card-overlay active" data-game-id="{{ game.id }}" title="Zur Wishlist hinzufügen">
+                <button class="wishlist-btn card-overlay active" data-game-id="{{ game.id }}" title="Add to Wishlist">
                     <i class="bi bi-heart-fill"></i>
                 </button>
                 {% else %}
-                <button class="wishlist-btn card-overlay" data-game-id="{{ game.id }}" title="Zur Wishlist hinzufügen">
+                <button class="wishlist-btn card-overlay" data-game-id="{{ game.id }}" title="Add to Wishlist">
                     <i class="bi bi-heart"></i>
                 </button>
                 {% endif %}
@@ -209,7 +209,7 @@
                 {% if current_user.is_authenticated %}
                 <button class="wishlist-btn card-overlay {% if game.id in wishlist_ids %}active{% endif %}"
                         data-game-id="{{ game.id }}"
-                        title="Zur Wishlist hinzufügen">
+                        title="Add to Wishlist">
                     <i class="bi {% if game.id in wishlist_ids %}bi-heart-fill{% else %}bi-heart{% endif %}"></i>
                 </button>
                 {% endif %}
