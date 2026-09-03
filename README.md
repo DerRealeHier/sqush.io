@@ -10,15 +10,15 @@
 |---|----------------------------------------------------------------------------------------------------|
 | **Auth** | Email/password registration, email verification, OTP 2FA, Google login (Firebase), Hack Club OAuth |
 | **Store** | Browse games, search & filter by tags, featured/popular/recommended listings                       |
-| **Game pages** | Screenshots, videos, reviews with upvotes, developer update posts with comments                    |
-| **Purchases** | Stripe checkout, cart (guest + logged in), wishlists, game gifting                                 |
+| **Game pages** | Screenshots, videos, reviews with upvotes, developer update posts with comments, Tip Jar |
+| **Purchases** | Stripe checkout, cart (guest + logged in), wishlists, game gifting, Tip Jar donations              |
 | **Bundles** | Multi-game bundles with collaborator roles, bundle-specific pricing                                |
 | **Library** | Owned games, download game files, playtime tracking                                                |
 | **Social** | Friends, profile pages, profile comments, notifications, collections                               |
 | **Messaging** | Direct messaging (user-to-user & user-to-dev), conversation threads, game inquiries, unread badges  |
-| **Developer** | Dashboard, upload game files (ZIP/EXE), sales/revenue analytics, game stats                        |
+| **Developer** | Dashboard, upload game files (ZIP/EXE), sales and tip analytics, game stats                        |
 | **Security** | Rate limiting, ClamAV malware scanning for uploaded files                                          |
-| **Badges** | User badge system with featured badge on profile                                                   |
+| **Badges** | User badge system with featured badge on profile (including Tip Jar Hero)                          |
 
 ---
 
@@ -47,7 +47,7 @@ sqush.io/
 ├── models/
 │   ├── user.py         # User, Friendship, Notification, ProfileComment, LoginOTP, UserBadge
 │   ├── game.py         # Game, Screenshot, Video, Review, ReviewVote, GameUpdate, GameStats, …
-│   ├── commerce.py     # Purchase, Wishlist, CartItem, Gift
+│   ├── commerce.py     # Purchase, Wishlist, CartItem, Gift, Tip
 │   ├── bundle.py       # Bundle, BundleGame, BundleCollaborator
 │   ├── collection.py   # Collection, CollectionGame
 │   └── message.py      # DirectMessage (user-to-user & user-to-dev inquiries)
@@ -55,20 +55,20 @@ sqush.io/
 │   ├── auth.py         # Register, login, logout, OAuth (Google, Hack Club), 2FA
 │   ├── main.py         # Home, store, game detail pages
 │   ├── cart.py         # Cart management (guest & logged-in)
-│   ├── checkout.py     # Stripe checkout, webhooks, gifting
+│   ├── checkout.py     # Stripe checkout, webhooks, gifting, Tip Jar
 │   ├── library.py      # User library, downloads
 │   ├── social.py       # Profiles, friends, collections, notifications
-│   ├── developer.py    # Developer dashboard, game upload/edit, analytics
+│   ├── developer.py    # Developer dashboard, game upload/edit, analytics, revenue and tips
 │   └── messages.py     # Direct messaging, inbox, conversation threads, unread counters
 ├── services/
 │   ├── auth_service.py   # load_user, login helpers
 │   ├── badge_service.py  # Badge award logic
 │   ├── cart_service.py   # Cart token & merge helpers
 │   ├── file_service.py   # File upload & ClamAV scan
-│   ├── game_service.py   # Recommendations, stats, tags
+│   ├── game_service.py   # Recommendations, stats, tags, tip calculations
 │   ├── mail_service.py   # Transactional email templates
-│   └── payment_service.py# Stripe checkout & fulfillment
-├── templates/          # Jinja2 HTML templates
+│   └── payment_service.py# Stripe checkout & fulfillment (games, gifts, tips)
+├── templates/          # Jinja2 HTML templates (including developer_revenue.html)
 ├── static/             # CSS, JS, images, uploaded files
 └── migrations/         # Alembic database migrations
 ```
@@ -126,7 +126,7 @@ STRIPE_SECRET_KEY=
 STRIPE_PUBLISHABLE_KEY=
 STRIPE_WEBHOOK_SECRET=
 
-# Email – Gmail with App Password (https://myaccount.google.com/apppasswords)
+# Email: Gmail with App Password (https://myaccount.google.com/apppasswords)
 MAIL_SERVER=smtp.gmail.com
 MAIL_PORT=587
 MAIL_USE_TLS=true
@@ -164,7 +164,7 @@ RATELIMIT_STORAGE_URI=memory://
 flask db upgrade
 ```
 
-If you run for the very first time without any migration history, you can also just start the app — `db.create_all()` runs automatically on startup.
+If you run for the very first time without any migration history, you can also just start the app: `db.create_all()` runs automatically on startup.
 
 ### 6. Run the development server
 
