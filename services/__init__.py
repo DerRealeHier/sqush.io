@@ -16,6 +16,7 @@ from services.file_service import (
 )
 from services.game_service import (
     calculate_game_revenue,
+    calculate_game_tips,
     calculate_display_price,
     calculate_review_score,
     _get_tag_set,
@@ -30,7 +31,7 @@ from services.cart_service import (
     _merge_guest_cart,
     _compute_bundle_alerts,
 )
-from services.payment_service import fulfill_checkout, fulfill_gift
+from services.payment_service import fulfill_checkout, fulfill_gift, fulfill_tip
 from services.badge_service import (
     get_all_badges,
     get_badge_definition,
@@ -58,6 +59,7 @@ __all__ = [
     "scan_filestorage_for_malware",
     "save_game_file",
     "calculate_game_revenue",
+    "calculate_game_tips",
     "calculate_display_price",
     "calculate_review_score",
     "_get_tag_set",
@@ -71,6 +73,7 @@ __all__ = [
     "_compute_bundle_alerts",
     "fulfill_checkout",
     "fulfill_gift",
+    "fulfill_tip",
     "get_all_badges",
     "get_badge_definition",
     "evaluate_eligible_badges",

@@ -189,6 +189,142 @@ document.addEventListener('DOMContentLoaded', () => {
             .catch((err) => { console.error("Stripe config Fehler:", err); });
     }
 
+    // Tip Jar Modal & Checkout. devs need extra cash (:
+    const tipJarModal = document.getElementById("tipJarModal");
+    if (tipJarModal) {
+        const tipPillBtns = tipJarModal.querySelectorAll(".tip-pill-btn");
+        const customContainer = document.getElementById("customTipContainer");
+        const customInput = document.getElementById("customTipInput");
+        const submitTipBtn = document.getElementById("submitTipBtn");
+        const tipMessageInput = document.getElementById("tipMessageInput");
+        const supporterNameInput = document.getElementById("supporterNameInput");
+        const tipErrorAlert = document.getElementById("tipErrorAlert");
+
+        let currentTipAmount = 5.00;
+
+        function updateSubmitButtonText(amount) {
+            if (submitTipBtn) {
+                const formatted = (amount || 0).toLocaleString("de-DE", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                });
+                submitTipBtn.innerHTML = `<i class="bi bi-heart-fill me-1"></i> SEND ${formatted} € TIP`;
+            }
+        }
+
+        tipPillBtns.forEach(btn => {
+            btn.addEventListener("click", () => {
+                tipPillBtns.forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+
+                const amountVal = btn.dataset.amount;
+                if (amountVal === "custom") {
+                    if (customContainer) customContainer.classList.remove("d-none");
+                    if (customInput) {
+                        customInput.focus();
+                        const parsed = parseFloat(customInput.value);
+                        currentTipAmount = !isNaN(parsed) && parsed > 0 ? parsed : 0;
+                    }
+                } else {
+                    if (customContainer) customContainer.classList.add("d-none");
+                    currentTipAmount = parseFloat(amountVal) || 5.00;
+                }
+                updateSubmitButtonText(currentTipAmount);
+            });
+        });
+
+        if (customInput) {
+            customInput.addEventListener("input", () => {
+                const parsed = parseFloat(customInput.value);
+                currentTipAmount = !isNaN(parsed) && parsed > 0 ? parsed : 0;
+                updateSubmitButtonText(currentTipAmount);
+            });
+        }
+
+        if (submitTipBtn) {
+            submitTipBtn.addEventListener("click", async (e) => {
+                e.preventDefault();
+                const gameId = submitTipBtn.dataset.gameId;
+
+                // Validate amount
+                if (!currentTipAmount || currentTipAmount < 1.00) {
+                    if (tipErrorAlert) {
+                        tipErrorAlert.textContent = "Please choose an amount of at least 1.00 €.";
+                        tipErrorAlert.classList.remove("d-none");
+                    }
+                    return;
+                }
+
+                if (tipErrorAlert) {
+                    tipErrorAlert.classList.add("d-none");
+                    tipErrorAlert.textContent = "";
+                }
+
+                const originalText = submitTipBtn.innerHTML;
+                submitTipBtn.disabled = true;
+                submitTipBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Processing...`;
+
+                const payload = {
+                    amount: currentTipAmount,
+                    message: tipMessageInput ? tipMessageInput.value.trim() : "",
+                    supporter_name: supporterNameInput ? supporterNameInput.value.trim() : "",
+                };
+
+                try {
+                    const sessionRes = await fetch(`/create-tip-checkout-session/${gameId}`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload),
+                    });
+                    const sessionData = await sessionRes.json();
+
+                    if (sessionData.error) {
+                        if (tipErrorAlert) {
+                            tipErrorAlert.textContent = sessionData.error;
+                            tipErrorAlert.classList.remove("d-none");
+                        }
+                        submitTipBtn.disabled = false;
+                        submitTipBtn.innerHTML = originalText;
+                        return;
+                    }
+
+                    if (sessionData.sessionId) {
+                        const cfgRes = await fetch("/config");
+                        const cfg = await cfgRes.json();
+                        if (!cfg.publicKey) {
+                            if (tipErrorAlert) {
+                                tipErrorAlert.textContent = "Stripe Publishable Key is not configured.";
+                                tipErrorAlert.classList.remove("d-none");
+                            }
+                            submitTipBtn.disabled = false;
+                            submitTipBtn.innerHTML = originalText;
+                            return;
+                        }
+
+                        const stripe = Stripe(cfg.publicKey);
+                        const { error } = await stripe.redirectToCheckout({ sessionId: sessionData.sessionId });
+                        if (error) {
+                            if (tipErrorAlert) {
+                                tipErrorAlert.textContent = error.message;
+                                tipErrorAlert.classList.remove("d-none");
+                            }
+                            submitTipBtn.disabled = false;
+                            submitTipBtn.innerHTML = originalText;
+                        }
+                    }
+                } catch (err) {
+                    console.error("Tip checkout error:", err);
+                    if (tipErrorAlert) {
+                        tipErrorAlert.textContent = "An error occurred. Please try again.";
+                        tipErrorAlert.classList.remove("d-none");
+                    }
+                    submitTipBtn.disabled = false;
+                    submitTipBtn.innerHTML = originalText;
+                }
+            });
+        }
+    }
+
     // Sale countdown timers
     // Yea for some reason I had two timers before, and one just
     // blew away the memory and CPU usage. Should be fixed now.

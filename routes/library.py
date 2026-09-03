@@ -87,7 +87,7 @@ def create_collection():
         color = "#ffeb3b"
     existing = Collection.query.filter_by(user_id=current_user.id, name=name).first()
     if existing:
-        flash(f'Du hast bereits eine Collection namens "{name}".', "error")
+        flash(f'You already have a collection named "{name}".', "error")
         return redirect(url_for("library"))
     col = Collection(
         user_id=current_user.id,
@@ -97,7 +97,7 @@ def create_collection():
     )
     db.session.add(col)
     db.session.commit()
-    flash(f'Collection "{name}" erstellt!', "success")
+    flash(f'Collection "{name}" created!', "success")
     return redirect(url_for("library"))
 
 
@@ -108,7 +108,7 @@ def delete_collection(collection_id):
     name = col.name
     db.session.delete(col)
     db.session.commit()
-    flash(f'Collection "{name}" gelöscht.', "success")
+    flash(f'Collection "{name}" deleted.', "success")
     return redirect(url_for("library"))
 
 
@@ -118,11 +118,11 @@ def rename_collection(collection_id):
     col = Collection.query.filter_by(id=collection_id, user_id=current_user.id).first_or_404()
     new_name = request.form.get("name", "").strip()
     if not new_name:
-        flash("Name darf nicht leer sein.", "error")
+        flash("Name cannot be empty.", "error")
         return redirect(url_for("library"))
     existing = Collection.query.filter_by(user_id=current_user.id, name=new_name).first()
     if existing and existing.id != col.id:
-        flash(f'Du hast bereits eine Collection namens "{new_name}".', "error")
+        flash(f'You already have a collection named "{new_name}".', "error")
         return redirect(url_for("library"))
     col.name = new_name
     db.session.commit()

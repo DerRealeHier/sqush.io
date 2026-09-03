@@ -9,7 +9,12 @@ from models.commerce import Purchase, Wishlist
 from models.bundle import Bundle, BundleGame, BundleCollaborator
 from services.auth_service import bundle_role
 from services.file_service import allowed_file, save_file, save_game_file
-from services.game_service import calculate_display_price, calculate_game_revenue, update_daily_stats
+from services.game_service import (
+    calculate_display_price,
+    calculate_game_revenue,
+    calculate_game_tips,
+    update_daily_stats,
+)
 
 developer_bp = Blueprint("developer", __name__)
 
@@ -57,13 +62,13 @@ def create_bundle():
     discount = request.form.get("discount_percent", type=int)
 
     if not title or discount is None or not 0 <= discount <= 95:
-        flash("Bitte prüfe Titel und Rabatt (0-95%).", "error")
+        flash("Please check title and discount (0-95%).", "error")
         return redirect(url_for("developer_bundles"))
 
     image = request.files.get("image")
 
     if image and image.filename and not allowed_file(image.filename):
-        flash("Nur Bilddateien sind erlaubt.", "error")
+        flash("Only image files are allowed.", "error")
         return redirect(url_for("developer_bundles"))
 
     b = Bundle(
@@ -124,14 +129,14 @@ def add_game_to_bundle(bundle_id):
 
     if not game or game.developer_id != current_user.id:
         flash(
-            "Du darfst nur deine eigenen Spiele hinzufügen.",
+            "You can only add your own games.",
             "error"
         )
     elif BundleGame.query.filter_by(
             bundle_id=bundle.id,
             game_id=game.id
     ).first():
-        flash("Spiel ist bereits im Bundle.", "info")
+        flash("Game is already in this bundle.", "info")
     else:
         db.session.add(
             BundleGame(
@@ -140,7 +145,7 @@ def add_game_to_bundle(bundle_id):
             )
         )
         db.session.commit()
-        flash("Spiel hinzugefügt.", "success")
+        flash("Game added.", "success")
 
     return redirect(
         url_for("edit_bundle", bundle_id=bundle.id)
@@ -172,7 +177,7 @@ def invite_bundle_collaborator(bundle_id):
             or target.role != "dev"
             or target.id == bundle.owner_id
     ):
-        flash("Developer nicht gefunden.", "error")
+        flash("Developer not found.", "error")
         return redirect(
             url_for("edit_bundle", bundle_id=bundle.id)
         )
@@ -181,7 +186,7 @@ def invite_bundle_collaborator(bundle_id):
             bundle_id=bundle.id,
             user_id=target.id
     ).first():
-        flash("Developer wurde bereits eingeladen.", "info")
+        flash("Developer has already been invited.", "info")
         return redirect(
             url_for("edit_bundle", bundle_id=bundle.id)
         )
@@ -208,7 +213,7 @@ def invite_bundle_collaborator(bundle_id):
 
     db.session.commit()
 
-    flash("Einladung gesendet.", "success")
+    flash("Invitation sent.", "success")
 
     return redirect(
         url_for("edit_bundle", bundle_id=bundle.id)
@@ -460,6 +465,7 @@ def developer_dashboard():
     my_games = Game.query.filter_by(developer_id=current_user.id).all()
     for game in my_games:
         game.display_price = calculate_display_price(game)
+        game.total_tips = calculate_game_tips(game)
     return render_template("admin.html", games=my_games)
 
 
@@ -487,6 +493,7 @@ def game_stats(game_id):
 
     current_wishlist_count = Wishlist.query.filter_by(game_id=game.id).count()
     current_purchase_count = Purchase.query.filter_by(game_id=game.id).count()
+    total_tips = calculate_game_tips(game)
 
     return render_template(
         "game_stats.html",
@@ -494,7 +501,9 @@ def game_stats(game_id):
         chart_json=json.dumps(chart_data),
         current_wishlist_count=current_wishlist_count,
         current_purchase_count=current_purchase_count,
-        total_revenue=calculate_game_revenue(game)
+        total_revenue=calculate_game_revenue(game),
+        total_tips=total_tips,
+        tips=game.tips,
     )
 
 
@@ -508,20 +517,27 @@ def developer_revenue():
 
     revenue_data = []
     total_revenue = 0
+    total_tips = 0
     for game in my_games:
         game_revenue = calculate_game_revenue(game)
+        game_tips = calculate_game_tips(game)
         total_revenue += game_revenue
+        total_tips += game_tips
         revenue_data.append({
             "game": game,
             "revenue": game_revenue,
-            "sales_count": len(game.purchases)
+            "tips": game_tips,
+            "total_earned": game_revenue + game_tips,
+            "sales_count": len(game.purchases),
+            "tips_count": len(game.tips),
         })
 
-    # highest earner first. Don't give anything to these poor.
-    revenue_data.sort(key=lambda x: x["revenue"], reverse=True)
+    # highest earner first. Don't give anything to these poor. (tips count too now :D)
+    revenue_data.sort(key=lambda x: x["total_earned"], reverse=True)
 
     return render_template(
         "developer_revenue.html",
         revenue_data=revenue_data,
-        total_revenue=total_revenue
+        total_revenue=total_revenue,
+        total_tips=total_tips,
     )

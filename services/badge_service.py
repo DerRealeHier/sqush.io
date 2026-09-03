@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from extensions import db
 from models.user import User, UserBadge, Notification, Friendship
-from models.commerce import Purchase, Gift
+from models.commerce import Purchase, Gift, Tip
 from models.game import Review
 
 
@@ -24,9 +24,9 @@ BADGE_DEFINITIONS = {
         "color": "#33d17a",
         "category": "spending",
         "tier": "gold",
-        "condition": lambda u: sum(
-            (p.price_paid or 0.0)
-            for p in Purchase.query.filter_by(user_id=u.id, refunded=False).all()
+        "condition": lambda u: (
+            sum((p.price_paid or 0.0) for p in Purchase.query.filter_by(user_id=u.id, refunded=False).all())
+            + sum((t.amount or 0.0) for t in Tip.query.filter_by(user_id=u.id).all())
         ) >= 25.0,
     },
     "whale": {
@@ -37,10 +37,20 @@ BADGE_DEFINITIONS = {
         "color": "#9b51e0",
         "category": "spending",
         "tier": "diamond",
-        "condition": lambda u: sum(
-            (p.price_paid or 0.0)
-            for p in Purchase.query.filter_by(user_id=u.id, refunded=False).all()
+        "condition": lambda u: (
+            sum((p.price_paid or 0.0) for p in Purchase.query.filter_by(user_id=u.id, refunded=False).all())
+            + sum((t.amount or 0.0) for t in Tip.query.filter_by(user_id=u.id).all())
         ) >= 100.0,
+    },
+    "patron": {
+        "key": "patron",
+        "name": "Tip Jar Hero",
+        "description": "Donated to an indie developer through their game's Tip Jar",
+        "icon": "bi-cup-hot-fill",
+        "color": "#ffe14d",
+        "category": "social",
+        "tier": "bronze",
+        "condition": lambda u: Tip.query.filter_by(user_id=u.id).count() >= 1,
     },
     "game_dev": {
         "key": "game_dev",

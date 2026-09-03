@@ -60,3 +60,22 @@ class Gift(db.Model):
     sender = db.relationship("User", foreign_keys=[sender_id], backref="gifts_sent")
     recipient = db.relationship("User", foreign_keys=[recipient_id], backref="gifts_received")
     game = db.relationship("Game", backref="gift_purchases")
+
+
+class Tip(db.Model):
+    # Tip Jar for devs. Give them your lunch money (: direct donations form players
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True, index=True)
+    developer_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    game_id = db.Column(db.Integer, db.ForeignKey("game.id"), nullable=False, index=True)
+    amount = db.Column(db.Float, nullable=False)
+    message = db.Column(db.String(500), nullable=True)
+    supporter_name = db.Column(db.String(64), nullable=True)
+    stripe_checkout_session_id = db.Column(db.String(255), nullable=True, unique=True)
+    stripe_payment_intent_id = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    tipper = db.relationship("User", foreign_keys=[user_id], backref="tips_sent")
+    developer = db.relationship("User", foreign_keys=[developer_id], backref="tips_received")
+    game = db.relationship("Game", backref="tips")
+

@@ -4,7 +4,7 @@ from flask import url_for, has_request_context
 from extensions import db
 from models.user import User, Notification
 from models.game import Game
-from models.commerce import Purchase, Gift
+from models.commerce import Purchase, Gift, Tip
 from models.bundle import Bundle
 from services.game_service import calculate_display_price, update_daily_stats
 from services.mail_service import send_email, _comic_email_shell
@@ -242,3 +242,98 @@ def fulfill_gift(checkout_session_id):
     if recipient:
         sync_user_badges(recipient)
     return True
+
+
+def fulfill_tip(checkout_session_id):
+    # called after stripe confirms the tip. Dev gets the cash, tipper gets love (:
+    stripe.api_key = config.stripe_keys["secret_key"]
+    cs = stripe.checkout.Session.retrieve(checkout_session_id)
+    if cs.payment_status != "paid":
+        return False
+
+    metadata = _extract_metadata(cs)
+    if metadata.get("purchase_type") != "tip":
+        return False
+
+    #  Tip row already exists?
+    existing_tip = Tip.query.filter_by(
+        stripe_checkout_session_id=checkout_session_id
+    ).first()
+    if existing_tip:
+        return True
+
+    try:
+        developer_id = int(metadata["developer_id"])
+        game_id = int(metadata["game_id"])
+        amount = float(metadata.get("tip_amount", 0))
+    except (KeyError, TypeError, ValueError):
+        return False
+
+    user_id_raw = metadata.get("user_id")
+    user_id = int(user_id_raw) if user_id_raw and user_id_raw.isdigit() else None
+    tip_message = metadata.get("tip_message", "")
+    supporter_name = metadata.get("supporter_name", "").strip() or "Anonymous Fan"
+
+    game = db.session.get(Game, game_id)
+    developer = db.session.get(User, developer_id)
+    if not game or not developer:
+        return False
+
+    tipper = db.session.get(User, user_id) if user_id else None
+    if tipper:
+        supporter_name = tipper.username
+
+    tip = Tip(
+        user_id=user_id,
+        developer_id=developer_id,
+        game_id=game_id,
+        amount=amount,
+        message=tip_message,
+        supporter_name=supporter_name,
+        stripe_checkout_session_id=checkout_session_id,
+        stripe_payment_intent_id=cs.payment_intent,
+    )
+    db.session.add(tip)
+
+    # in app notification for developer
+    notif_msg = f"{supporter_name} sent you a {amount:.2f}€ tip for '{game.title}'!"
+    if tip_message:
+        notif_msg += f' "{tip_message[:100]}"'
+    db.session.add(Notification(
+        user_id=developer_id,
+        message=notif_msg,
+        type="tip_received",
+    ))
+
+    # send email to the dev so they know they got cash (:
+    if developer.email:
+        try:
+            game_url = url_for("main.game_detail", game_id=game.id, _external=True) if has_request_context() else f"/game/{game.id}"
+        except Exception:
+            game_url = f"/game/{game.id}"
+
+        email_body = f"""
+          <p>Hey {developer.username},</p>
+          <p>Great news! <strong>{supporter_name}</strong> dropped a <strong>{amount:.2f}€</strong> tip into your Tip Jar for <strong>{game.title}</strong>!</p>
+          {f'<p style="background:#222;padding:12px;border-left:4px solid #ffe14d;color:#eee;">"{tip_message}"</p>' if tip_message else ''}
+          <p style="text-align:center;margin:28px 0;">
+            <a href="{game_url}"
+               style="background:#33d17a;color:#000;font-weight:bold;text-decoration:none;
+                      padding:12px 24px;border:3px solid #000;display:inline-block;">
+              VIEW GAME
+            </a>
+          </p>
+        """
+        send_email(
+            developer.email,
+            f"New tip: {amount:.2f}€ from {supporter_name} for {game.title} (:",
+            _comic_email_shell("New tip in your Tip Jar!", email_body)
+        )
+
+    db.session.commit()
+
+    if tipper:
+        sync_user_badges(tipper)
+
+    return True
+

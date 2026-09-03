@@ -4,8 +4,10 @@ from flask_login import current_user, login_required
 from extensions import db
 from models.game import Game, Screenshot, Video, GameUpdate, UpdateVote, GameFollow
 from models.bundle import Bundle
+from models.commerce import Tip
 from services.game_service import (
     calculate_display_price,
+    calculate_game_tips,
     get_recommended_games,
     update_daily_stats,
     check_sales_expiry,
@@ -104,9 +106,16 @@ def game_detail(game_id):
             .filter(GameUpdate.game_id == game.id, UpdateVote.user_id == current_user.id).all()
         }
 
+    # fetch tips for this game so we can show who has deep pockets (:
+    tips = Tip.query.filter_by(game_id=game.id).order_by(Tip.created_at.desc()).all()
+    total_tips = sum(t.amount for t in tips)
+    tips_count = len(tips)
+    recent_tips = tips[:6]
+
     return render_template("game_detail.html", game=game, screenshots=screenshots, videos=videos,
                            average_score=average_score, reviews=reviews,
-                           is_following=is_following, my_update_votes=my_update_votes)
+                           is_following=is_following, my_update_votes=my_update_votes,
+                           total_tips=total_tips, tips_count=tips_count, recent_tips=recent_tips)
 
 
 @main_bp.route("/bundle/<int:bundle_id>")

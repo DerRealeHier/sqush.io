@@ -5,10 +5,10 @@ from flask_login import current_user, login_required
 from extensions import db
 from models.user import User, Notification
 from models.game import Game
-from models.commerce import Purchase, Gift
+from models.commerce import Purchase, Gift, Tip
 from models.bundle import Bundle
 from services.game_service import calculate_display_price, update_daily_stats
-from services.payment_service import fulfill_checkout, fulfill_gift, _extract_metadata
+from services.payment_service import fulfill_checkout, fulfill_gift, fulfill_tip, _extract_metadata
 import config
 
 checkout_bp = Blueprint("checkout", __name__)
@@ -186,7 +186,7 @@ def create_gift_checkout_session(game_id):
 @checkout_bp.route("/gift_success/<int:game_id>")
 @login_required
 def gift_success(game_id):
-    """Fallback success page – called after Stripe redirects the sender back."""
+    """Fallback success page: called after Stripe redirects the sender back."""
     game = Game.query.get_or_404(game_id)
     session_id = request.args.get("session_id")
 
@@ -214,7 +214,7 @@ def gift_success(game_id):
             flash("Payment has not been completed yet.", "error")
             return redirect(url_for("gift_page", game_id=game.id))
 
-        # Idempotent – webhook may have already run this, that's fine
+        # Idempotent: webhook may have already run this, that's fine
         fulfilled = fulfill_gift(checkout_session.id)
 
         #now the Stripe metadata shouldn't be touched
@@ -245,6 +245,126 @@ def gift_success(game_id):
         flash("Something went wrong while processing the gift.", "error")
 
     return render_template("gift_success.html", game=game, recipient_name=recipient_name)
+
+
+# -------------------------------------------------------------------------
+# Tip Jar routes
+# -------------------------------------------------------------------------
+
+@checkout_bp.route("/create-tip-checkout-session/<int:game_id>", methods=["POST"])
+def create_tip_checkout_session(game_id):
+    # throw extra cash at the dev (:
+    game = Game.query.get_or_404(game_id)
+
+    if current_user.is_authenticated and current_user.id == game.developer_id:
+        return jsonify(error="You cannot tip your own game! Nice try (:"), 400
+
+    payload = request.get_json(silent=True) or {}
+    try:
+        amount = float(payload.get("amount", 0))
+    except (ValueError, TypeError):
+        return jsonify(error="Please enter a valid amount."), 400
+
+    if amount < 1.00:
+        return jsonify(error="The minimum tip amount is 1.00 €."), 400
+    if amount > 500.00:
+        return jsonify(error="The maximum tip amount is 500.00 €."), 400
+
+    message = (payload.get("message") or "").strip()[:500]
+    supporter_name = (payload.get("supporter_name") or "").strip()[:64]
+    if current_user.is_authenticated:
+        supporter_name = current_user.username
+    elif not supporter_name:
+        supporter_name = "Anonymous Fan"
+
+    if not config.stripe_keys["secret_key"]:
+        return jsonify(error="Stripe is not configured"), 500
+
+    stripe.api_key = config.stripe_keys["secret_key"]
+    unit_amount = int(round(amount * 100))
+
+    try:
+        user_id_str = str(current_user.id) if current_user.is_authenticated else ""
+        dev_username = game.user.username if game.user else "Developer"
+        checkout_session = stripe.checkout.Session.create(
+            success_url=(
+                url_for("checkout.tip_success", game_id=game.id, _external=True)
+                + "?session_id={CHECKOUT_SESSION_ID}"
+            ),
+            cancel_url=url_for("game_detail", game_id=game.id, _external=True),
+            payment_method_types=["card"],
+            mode="payment",
+            client_reference_id=user_id_str,
+            metadata={
+                "purchase_type": "tip",
+                "user_id": user_id_str,
+                "developer_id": str(game.developer_id),
+                "game_id": str(game.id),
+                "tip_amount": f"{amount:.2f}",
+                "tip_message": message,
+                "supporter_name": supporter_name,
+            },
+            line_items=[{
+                "price_data": {
+                    "currency": "eur",
+                    "product_data": {
+                        "name": f"Tip Jar: Tip for {dev_username} ({game.title})",
+                    },
+                    "unit_amount": unit_amount,
+                },
+                "quantity": 1,
+            }],
+        )
+        return jsonify({"sessionId": checkout_session.id})
+    except stripe.error.StripeError as e:
+        print(f"DEBUG: Stripe tip error: {e}")
+        return jsonify(error="Failed to create Stripe checkout session"), 500
+    except Exception as e:
+        print(f"DEBUG: Tip checkout error: {e}")
+        return jsonify(error="Error creating checkout session"), 500
+
+
+@checkout_bp.route("/tip_success/<int:game_id>")
+def tip_success(game_id):
+    # dev got their cash, back to the game page (:
+    game = Game.query.get_or_404(game_id)
+    session_id = request.args.get("session_id")
+
+    if not session_id:
+        flash("Missing Stripe session.", "error")
+        return redirect(url_for("game_detail", game_id=game.id))
+
+    try:
+        stripe.api_key = config.stripe_keys["secret_key"]
+        checkout_session = stripe.checkout.Session.retrieve(session_id)
+
+        if checkout_session.payment_status != "paid":
+            flash("Payment has not been completed yet.", "warning")
+            return redirect(url_for("game_detail", game_id=game.id))
+
+        fulfilled = fulfill_tip(checkout_session.id)
+        tip_record = Tip.query.filter_by(
+            stripe_checkout_session_id=checkout_session.id
+        ).first()
+
+        dev_name = game.user.username if game.user else "the developer"
+        amount_str = f"{tip_record.amount:.2f}€" if tip_record else "your tip"
+
+        if fulfilled:
+            flash(
+                f"Your tip of {amount_str} was sent directly to {dev_name}. Thanks for your support! (:",
+                "success",
+            )
+        else:
+            flash(
+                "Payment was successful! Your tip will be credited shortly.",
+                "info",
+            )
+    except Exception as e:
+        print(f"DEBUG: Tip success error: {e}")
+        flash("Thank you for your support!", "success")
+
+    return redirect(url_for("game_detail", game_id=game.id))
 
 
 @checkout_bp.route("/create-bundle-checkout-session/<int:bundle_id>")
@@ -309,6 +429,8 @@ def stripe_webhook():
             session_id = getattr(checkout_session, "id", None) or (checkout_session.get("id") if isinstance(checkout_session, dict) else None)
             if meta.get("purchase_type") == "gift":
                 fulfill_gift(session_id)
+            elif meta.get("purchase_type") == "tip":
+                fulfill_tip(session_id)
             else:
                 fulfill_checkout(session_id)
 
@@ -318,6 +440,8 @@ def stripe_webhook():
             session_id = getattr(checkout_session, "id", None) or (checkout_session.get("id") if isinstance(checkout_session, dict) else None)
             if meta.get("purchase_type") == "gift":
                 fulfill_gift(session_id)
+            elif meta.get("purchase_type") == "tip":
+                fulfill_tip(session_id)
             else:
                 fulfill_checkout(session_id)
 
@@ -368,7 +492,7 @@ def success(game_id):
             flash("This payment session does not belong to your account.", "error")
             return redirect(url_for("game_detail", game_id=game.id))
 
-        # Nur bei tatsächlich bezahlter Session den Kauf übernehmen.
+        # Only fulfill purchase on paid session.
         if checkout_session.payment_status != "paid":
             flash("Payment has not been completed yet.", "error")
             return redirect(url_for("game_detail", game_id=game.id))

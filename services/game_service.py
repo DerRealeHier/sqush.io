@@ -2,12 +2,12 @@ from datetime import datetime, timezone
 from sqlalchemy import func as _sqlfunc
 from extensions import db
 from models.game import Game, GameStats
-from models.commerce import Purchase, Wishlist
+from models.commerce import Purchase, Wishlist, Tip
 
 
 def calculate_game_revenue(game):
     # SQL SUM is orders of magnitude faster than loading every Purchase object into Python.
-    # NOTE: purchases where price_paid is NULL (legacy rows) are excluded from the sum;
+    # purchases where price_paid is NULL (legacy rows) are excluded from the sum;
     # in practice price_paid is always set at purchase time.
     result = db.session.query(_sqlfunc.sum(Purchase.price_paid)).filter(
         Purchase.game_id == game.id,
@@ -15,6 +15,15 @@ def calculate_game_revenue(game):
         Purchase.price_paid != None,
     ).scalar()
     return result or 0.0
+
+
+def calculate_game_tips(game):
+    # sum up all the tips. developers need their coffee (:
+    result = db.session.query(_sqlfunc.sum(Tip.amount)).filter(
+        Tip.game_id == game.id,
+    ).scalar()
+    return result or 0.0
+
 
 
 def calculate_display_price(game):
@@ -171,7 +180,7 @@ _last_sale_check: "datetime | None" = None
 def check_sales_expiry():
     global _last_sale_check
     now = datetime.now(timezone.utc)
-    # Only run the DB query at most once per minute – no need to check on every home page hit.
+    # Only run the DB query at most once per minute - no need to check on every home page hit.
     if _last_sale_check is not None and (now - _last_sale_check).total_seconds() < 60:
         return
     _last_sale_check = now

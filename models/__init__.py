@@ -11,7 +11,7 @@ from models.game import (
     ReviewVote,
     GameStats,
 )
-from models.commerce import Purchase, Wishlist, CartItem, Gift
+from models.commerce import Purchase, Wishlist, CartItem, Gift, Tip
 from models.bundle import Bundle, BundleGame, BundleCollaborator
 from models.collection import Collection, CollectionGame
 from models.message import DirectMessage
@@ -37,6 +37,7 @@ __all__ = [
     "Wishlist",
     "CartItem",
     "Gift",
+    "Tip",
     "Bundle",
     "BundleGame",
     "BundleCollaborator",
