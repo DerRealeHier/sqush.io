@@ -186,6 +186,7 @@
         <a class="NavBar" href="{{ url_for('home') }}">HOME</a>
         <a class="NavBar ms-3" href="{{ url_for('store_front') }}">STORE</a>
         <a class="NavBar ms-3" href="{{ url_for('developer_bundles') }}">BUNDLES</a>
+        <a class="NavBar ms-3" href="{{ url_for('developer.developer_revenue') }}">REVENUE & TIPS</a>
     </div>
     {% if current_user.is_authenticated %}
     <div class="comic-auth-box">
@@ -286,10 +287,15 @@
                         <span class="badge demo-badge">DEMO LIVE</span>
                         {% endif %}
                     </div>
-                    <div class="mb-2">
+                    <div class="mb-2 d-flex align-items-center gap-2 flex-wrap">
                          <span class="view-count-badge">
                          <i class="bi bi-eye-fill"></i> {{ game.view_count }} Views
                         </span>
+                        {% if game.total_tips and game.total_tips > 0 %}
+                        <span class="view-count-badge" style="background: var(--yellow); color: #000; border: 1px solid #000;">
+                         <i class="bi bi-cup-hot-fill"></i> {{ "%.2f"|format(game.total_tips) }}€ Tips
+                        </span>
+                        {% endif %}
                     </div>
                     <div class="small mb-2">
                         {% if game.is_on_sale %}
