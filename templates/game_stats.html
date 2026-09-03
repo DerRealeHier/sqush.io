@@ -119,31 +119,57 @@
     </div>
 
     <div class="row g-3 mb-4">
-        <div class="col-md-3">
+        <div class="col-md">
             <div class="stat-card stat-views">
                 <div class="stat-number">{{ game.view_count }}</div>
                 <div class="stat-label"><i class="bi bi-eye-fill"></i> Total Views</div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md">
             <div class="stat-card stat-wishlist">
                 <div class="stat-number">{{ current_wishlist_count }}</div>
                 <div class="stat-label"><i class="bi bi-heart-fill"></i> On Wishlist</div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md">
             <div class="stat-card stat-purchase">
                 <div class="stat-number">{{ current_purchase_count }}</div>
                 <div class="stat-label"><i class="bi bi-bag-check-fill"></i> Purchases</div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md">
             <div class="stat-card stat-revenue">
                 <div class="stat-number">{{ "%.2f"|format(total_revenue) }}€</div>
                 <div class="stat-label"><i class="bi bi-cash-coin"></i> Revenue</div>
             </div>
         </div>
+        <div class="col-md">
+            <div class="stat-card" style="border-color: var(--yellow);">
+                <div class="stat-number" style="color: var(--yellow);">{{ "%.2f"|format(total_tips or 0.0) }}€</div>
+                <div class="stat-label"><i class="bi bi-cup-hot-fill text-warning"></i> Tip Jar Total</div>
+            </div>
+        </div>
     </div>
+
+    {% if tips and tips|length > 0 %}
+    <div class="dev-panel mb-4">
+        <h4 class="mb-3"><i class="bi bi-cup-hot-fill text-warning"></i> Received Tips ({{ tips|length }})</h4>
+        <div class="d-flex flex-column gap-2">
+            {% for t in tips %}
+            <div class="p-3 d-flex justify-content-between align-items-center flex-wrap gap-2" style="background: #202020; border: 2px solid #000; box-shadow: 4px 4px 0 #000;">
+                <div>
+                    <strong class="text-warning fs-5">{{ t.supporter_name or (t.tipper.username if t.tipper else "Supporter") }}</strong>
+                    {% if t.message %}
+                    <div class="text-white-50 mt-1">"{{ t.message }}"</div>
+                    {% endif %}
+                    <div><small class="text-secondary">{{ t.created_at.strftime('%d.%m.%Y %H:%M') }}</small></div>
+                </div>
+                <span class="badge bg-success comic-font fs-5">+{{ "%.2f"|format(t.amount) }}€</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 
     <div class="dev-panel">
         <h4 class="mb-4"><i class="bi bi-calendar3"></i> History Over Time</h4>
