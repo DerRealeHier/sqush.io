@@ -742,7 +742,7 @@ h1 { text-transform: uppercase; font-size: 3.4rem ; text-shadow: 4px 4px 0px var
     pointer-events: none;
 }
 
-/* Kleine Variante — Overlay oben rechts auf Game-Cards (Store/Home) */
+/* Kleine Variante: Overlay oben rechts auf Game-Cards (Store/Home) */
 .wishlist-btn.card-overlay {
     position: absolute;
     top: 10px;
@@ -753,7 +753,7 @@ h1 { text-transform: uppercase; font-size: 3.4rem ; text-shadow: 4px 4px 0px var
     font-size: 1.2rem;
 }
 
-/* Große Variante — Game-Detail Seite, neben BUY NOW */
+/* Große Variante: Game-Detail Seite, neben BUY NOW */
 .wishlist-btn.large {
     width: 60px;
     height: 60px;
@@ -2110,7 +2110,7 @@ body.bundle-dashboard .bundle-stat-box small {
     padding: 10px 14px !important;
 }
 
-/* sent by current user — right aligned, blue ink look */
+/* sent by current user: right aligned, blue ink look */
 .message-row.justify-content-end .message-bubble {
     background: var(--blue, #3aa0ff) !important;
     color: #000 !important;
@@ -2144,7 +2144,7 @@ body.bundle-dashboard .bundle-stat-box small {
     z-index: 1;
 }
 
-/* received from partner — left aligned, white paper look */
+/* received from partner: left aligned, white paper look */
 .message-row.justify-content-start .message-bubble {
     background: #f0f0f0 !important;
     color: #000 !important;
@@ -2342,7 +2342,7 @@ body.bundle-dashboard .bundle-stat-box small {
 
 /* ---- Message Buttons on Profile, Community, Game Detail ---- */
 
-/* MESSAGE button on profile page — blue, comic push style */
+/* MESSAGE button on profile page: blue, comic push style */
 .btn-comic-message {
     background: var(--blue, #3aa0ff);
     color: #000;
@@ -2372,29 +2372,42 @@ body.bundle-dashboard .bundle-stat-box small {
     box-shadow: 2px 2px 0px #000;
 }
 
-/* MESSAGE in community card — inherits btn-sm size but adds comic borders */
-.friend-card + div .btn.btn-sm.btn-primary {
-    background: var(--blue, #3aa0ff);
-    border: 3px solid #000;
-    border-radius: 0;
-    box-shadow: 3px 3px 0px #000;
-    color: #000;
-    font-family: 'Bangers', sans-serif;
-    letter-spacing: 1px;
-    font-size: 0.9rem;
-    text-transform: uppercase;
-    transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.1s ease;
+/* MESSAGE in community card: placed cleanly inside the card (: */
+.friend-card-actions {
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
 }
 
-.friend-card + div .btn.btn-sm.btn-primary:hover {
+.friend-card-message-btn {
+    font-size: 0.95rem;
+    padding: 6px 18px;
+    border: 3px solid #000;
+    box-shadow: 3px 3px 0px #000;
+    text-decoration: none;
+    color: #000 !important;
+}
+
+.friend-card-message-btn:hover {
     transform: translate(-2px, -2px);
     box-shadow: 5px 5px 0px #000;
     background: var(--yellow, #ffe14d);
-    color: #000;
+    color: #000 !important;
     border-color: #000;
 }
 
-/* MESSAGE DEV button on game detail page — cyan outline style */
+.friend-card-link {
+    width: 100%;
+    color: #fff;
+}
+
+.friend-card-link:hover .friend-name {
+    color: var(--yellow, #ffe14d);
+}
+
+/* MESSAGE DEV button on game detail page: cyan outline style */
 .btn-outline-info.btn-comic {
     border: 3px solid #000 !important;
     background: #00bcd4 !important;
