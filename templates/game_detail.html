@@ -28,6 +28,130 @@
         }
 
         h1, h5, .comic-font { font-family: 'Bangers', 'Comic Neue', sans-serif; letter-spacing: 1px; }
+
+        /* tip jar styles. Gotta make it comic (: */
+        .tip-jar-trigger-btn {
+            background: #ffe14d;
+            color: #000;
+            font-size: 1.5rem;
+            border: 3px solid #000;
+            box-shadow: 4px 4px 0 #000;
+            font-family: 'Bangers', sans-serif;
+            letter-spacing: 1px;
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+        }
+        .tip-jar-trigger-btn:hover {
+            background: #ffea75;
+            color: #000;
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 #000;
+        }
+        .tip-jar-dev-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #202020;
+            border: 3px solid var(--yellow);
+            box-shadow: 4px 4px 0 #000;
+            padding: 12px 20px;
+            font-family: 'Bangers', sans-serif;
+            font-size: 1.3rem;
+            letter-spacing: 1px;
+            color: #fff;
+        }
+        .comic-modal-content {
+            background: #18181c;
+            border: 4px solid #000;
+            box-shadow: 10px 10px 0 #000;
+            border-radius: 0;
+            color: #fff;
+        }
+        .tip-jar-avatar-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--yellow);
+            color: #000;
+            border: 3px solid #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            box-shadow: 3px 3px 0 #000;
+        }
+        .tip-pill-btn {
+            background: #242428;
+            color: #fff;
+            border: 2px solid #000;
+            box-shadow: 3px 3px 0 #000;
+            font-family: 'Bangers', sans-serif;
+            font-size: 1.15rem;
+            letter-spacing: 0.5px;
+            padding: 8px 16px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .tip-pill-btn:hover {
+            background: #33333a;
+            color: #ffe14d;
+            transform: translate(-1px, -1px);
+            box-shadow: 4px 4px 0 #000;
+        }
+        .tip-pill-btn.active {
+            background: var(--yellow);
+            color: #000;
+            border-color: #000;
+            box-shadow: 4px 4px 0 #000;
+            transform: translate(-2px, -2px);
+        }
+        .comic-label {
+            font-family: 'Bangers', sans-serif;
+            letter-spacing: 1px;
+            color: var(--yellow);
+            font-size: 1.1rem;
+            display: block;
+        }
+        .comic-input {
+            background: #222228 !important;
+            border: 3px solid #000 !important;
+            border-radius: 0 !important;
+            color: #fff !important;
+            font-weight: 700;
+            box-shadow: 3px 3px 0 #000;
+        }
+        .comic-input:focus {
+            border-color: var(--yellow) !important;
+            box-shadow: 3px 3px 0 var(--yellow) !important;
+        }
+        .comic-input-addon {
+            background: #000;
+            color: var(--yellow);
+            border: 3px solid #000;
+            border-radius: 0;
+            font-weight: 900;
+        }
+        .tip-submit-btn {
+            background: var(--yellow);
+            color: #000;
+            font-size: 1.4rem;
+            letter-spacing: 1px;
+            box-shadow: 5px 5px 0 #000;
+        }
+        .tip-submit-btn:hover {
+            background: #ffeb3b;
+            color: #000;
+            transform: translate(-2px, -2px);
+            box-shadow: 7px 7px 0 #000;
+        }
+        .recent-tips-drawer {
+            background: #141416;
+            border: 2px dashed #444;
+        }
+        .recent-tip-item {
+            padding: 8px 12px;
+            background: #1e1e22;
+            border: 1px solid #000;
+            box-shadow: 2px 2px 0 #000;
+        }
     </style>
 </head>
 <script>
@@ -79,6 +203,20 @@
         {% endif %}
     </div>
 </nav>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div class="container mt-3">
+    {% for cat, msg in messages %}
+    <div class="comic-frame mb-3 py-3 px-4 fw-bold d-flex align-items-center gap-3 fs-5"
+         style="background:{% if cat=='error' %}var(--red); color:#fff;{% elif cat=='warning' %}var(--yellow); color:#000;{% else %}var(--green); color:#000;{% endif %}; border: 3px solid #000; box-shadow: 6px 6px 0 #000;">
+        <i class="bi {% if cat=='error' %}bi-exclamation-triangle-fill{% elif cat=='warning' %}bi-exclamation-circle-fill{% else %}bi-check-circle-fill{% endif %} fs-3"></i>
+        <span>{{ msg }}</span>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endwith %}
 
 <div class="container py-5">
     <div id="steamCarousel" class="carousel slide comic-frame mb-5" data-bs-ride="carousel" style="padding: 10px;">
@@ -194,6 +332,21 @@
                     <i class="bi bi-chat-left-text-fill"></i> MESSAGE DEV
                 </a>
                 {% endif %}
+                {% endif %}
+
+                {% if not current_user.is_authenticated or current_user.id != game.developer_id %}
+                <button type="button"
+                        class="btn btn-warning btn-lg px-4 py-3 btn-comic tip-jar-trigger-btn"
+                        data-bs-toggle="modal"
+                        data-bs-target="#tipJarModal"
+                        title="Spendiere {{ game.user.username }} ein Trinkgeld (2€, 5€...)">
+                    <i class="bi bi-cup-hot-fill"></i> TIP DEV
+                </button>
+                {% else %}
+                <div class="tip-jar-dev-badge" title="Dein Tip Jar für dieses Spiel">
+                    <i class="bi bi-cup-hot-fill text-warning"></i>
+                    <span>{{ "%.2f"|format(total_tips or 0.0) }}€ Tips ({{ tips_count or 0 }})</span>
+                </div>
                 {% endif %}
             </div>
         </div>
@@ -311,6 +464,132 @@
     </div>
     {% endfor %}
 </div>
+
+{% if tips_count and tips_count > 0 %}
+<div class="container mb-5">
+    <div class="comic-frame p-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <h2 class="text-warning mb-0"><i class="bi bi-cup-hot-fill"></i> TIP JAR SUPPORTERS ({{ tips_count }})</h2>
+            <span class="badge bg-warning text-dark fs-5 comic-font py-2 px-3 border border-dark border-2">{{ "%.2f"|format(total_tips) }}€ GESPENDET</span>
+        </div>
+        <p class="text-light fs-5 mb-4">Ein riesiges Dankeschön an alle, die <strong>{{ game.user.username }}</strong> für dieses Spiel unterstützt haben! (:</p>
+        <div class="row g-3">
+            {% for tip in recent_tips %}
+            <div class="col-md-4 col-sm-6">
+                <div class="p-3 comic-card" style="border: 2px solid #000; background: #1c1c20; height: 100%;">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <strong class="text-warning fs-5">{{ tip.supporter_name or (tip.tipper.username if tip.tipper else "Supporter") }}</strong>
+                        <span class="badge bg-success comic-font fs-6">+{{ "%.2f"|format(tip.amount) }}€</span>
+                    </div>
+                    {% if tip.message %}
+                    <p class="text-white-50 small mb-2 fst-italic">"{{ tip.message }}"</p>
+                    {% endif %}
+                    <small class="text-secondary">{{ tip.created_at.strftime('%d.%m.%Y') }}</small>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Tip Jar Modal -->
+<div class="modal fade comic-modal" id="tipJarModal" tabindex="-1" aria-labelledby="tipJarModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content comic-modal-content">
+            <div class="modal-header comic-modal-header border-0 pb-0">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="tip-jar-avatar-icon">
+                        <i class="bi bi-cup-hot-fill"></i>
+                    </div>
+                    <div>
+                        <h4 class="modal-title comic-font text-warning mb-0" id="tipJarModalLabel">DEV TIP JAR</h4>
+                        <small class="text-white-50">Support für <strong>{{ game.user.username }}</strong> &bull; <em>{{ game.title }}</em></small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body comic-modal-body pt-3">
+                <p class="fs-6 text-light mb-3">
+                    Hat dir <strong>{{ game.title }}</strong> gefallen? Wirf ein bisschen Extra-Cash in den Tip Jar des Developers! (:
+                </p>
+
+                <label class="comic-label mb-2">Wähle deinen Betrag:</label>
+                <div class="tip-pills-wrapper d-flex gap-2 mb-3 flex-wrap">
+                    <button type="button" class="btn btn-comic tip-pill-btn" data-amount="2.00">
+                        2,00 €
+                    </button>
+                    <button type="button" class="btn btn-comic tip-pill-btn active" data-amount="5.00">
+                        5,00 € <span class="badge bg-danger ms-1 comic-font">POPULAR</span>
+                    </button>
+                    <button type="button" class="btn btn-comic tip-pill-btn" data-amount="10.00">
+                        10,00 €
+                    </button>
+                    <button type="button" class="btn btn-comic tip-pill-btn" data-amount="custom">
+                        Anderer Betrag
+                    </button>
+                </div>
+
+                <div id="customTipContainer" class="mb-3 d-none">
+                    <label class="comic-label mb-1">Eigener Betrag in €:</label>
+                    <div class="input-group">
+                        <span class="input-group-text comic-input-addon">€</span>
+                        <input type="number" id="customTipInput" class="form-control comic-input" min="1.00" max="500.00" step="0.50" placeholder="z.B. 3.00">
+                    </div>
+                    <small class="text-white-50">Mindestbetrag: 1,00 €</small>
+                </div>
+
+                {% if not current_user.is_authenticated %}
+                <div class="mb-3">
+                    <label class="comic-label mb-1">Dein Name oder Nickname (optional):</label>
+                    <input type="text" id="supporterNameInput" class="form-control comic-input" placeholder="z.B. Ein treuer Fan">
+                </div>
+                {% else %}
+                <div class="mb-2">
+                    <small class="text-white-50">
+                        <i class="bi bi-person-check-fill text-success"></i> Spenden als: <strong class="text-warning">{{ current_user.username }}</strong>
+                    </small>
+                </div>
+                {% endif %}
+
+                <div class="mb-3">
+                    <label class="comic-label mb-1">Nachricht an {{ game.user.username }} (optional):</label>
+                    <textarea id="tipMessageInput" class="form-control comic-input" rows="2" maxlength="500" placeholder="Liebe dein Spiel! Weiter so (:"></textarea>
+                </div>
+
+                <div id="tipErrorAlert" class="alert alert-danger d-none comic-alert py-2 mb-3"></div>
+
+                <button type="button" id="submitTipBtn" class="btn btn-warning w-100 py-3 btn-comic tip-submit-btn" data-game-id="{{ game.id }}">
+                    <i class="bi bi-heart-fill me-1"></i> TIP 5,00 € SENDEN
+                </button>
+
+                <div class="text-center mt-2">
+                    <small class="text-white-50"><i class="bi bi-shield-lock-fill"></i> Sichere Bezahlung über Stripe</small>
+                </div>
+
+                {% if recent_tips and recent_tips|length > 0 %}
+                <div class="recent-tips-drawer mt-4 p-3">
+                    <h6 class="comic-font text-warning mb-2"><i class="bi bi-stars"></i> LETZTE SPENDER FÜR DIESES SPIEL</h6>
+                    <div class="d-flex flex-column gap-2">
+                        {% for t in recent_tips %}
+                        <div class="recent-tip-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong class="text-white">{{ t.supporter_name or (t.tipper.username if t.tipper else "Supporter") }}</strong>
+                                {% if t.message %}
+                                <div class="small text-white-50 text-truncate" style="max-width: 260px;">"{{ t.message }}"</div>
+                                {% endif %}
+                            </div>
+                            <span class="badge bg-success comic-font fs-6">+{{ "%.2f"|format(t.amount) }}€</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://js.stripe.com/v3/"></script>
 <script src="{{ url_for('static', filename='JS/script.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
