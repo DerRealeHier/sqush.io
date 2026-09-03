@@ -147,31 +147,30 @@
 
     <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
         {% for u in users %}
-        <div class="col text-center">
-            <a href="{{ url_for('profile', username=u.username) }}" class="text-decoration-none">
-                <div class="friend-card">
-                    <div class="halftone-corner"></div>
+        <div class="col">
+            <div class="friend-card d-flex flex-column justify-content-between h-100">
+                <div class="halftone-corner"></div>
+                <a href="{{ url_for('profile', username=u.username) }}" class="text-decoration-none friend-card-link d-flex flex-column align-items-center flex-grow-1">
                     <img src="{{ url_for('static', filename=u.profile_image) }}" class="friend-avatar" alt="{{ u.username }}">
                     <div class="friend-name">{{ u.username }}</div>
                     <span class="comic-role-badge mt-2 d-inline-block friend-role-badge">{{ u.role }}</span>
                     {% set fb = get_featured_badge(u) %}
                     {% if fb %}
-                    <br>
-                    <span class="friend-card-featured-badge"
+                    <span class="friend-card-featured-badge mt-2"
                           style="background-color: {{ fb.color }};"
                           title="{{ fb.description }}">
                         <i class="bi {{ fb.icon }}"></i> {{ fb.name }}
                     </span>
                     {% endif %}
-                </div>
-            </a>
-            {% if current_user.is_authenticated and current_user.id != u.id %}
-            <div class="mt-2">
-                <a href="{{ url_for('messages.conversation', username=u.username) }}" class="btn-comic-message">
-                    <i class="bi bi-chat-dots-fill"></i> MESSAGE
                 </a>
+                <div class="friend-card-actions mt-3">
+                    {% if current_user.is_authenticated and current_user.id != u.id %}
+                    <a href="{{ url_for('messages.conversation', username=u.username) }}" class="btn-comic-message friend-card-message-btn">
+                        <i class="bi bi-chat-dots-fill"></i> MESSAGE
+                    </a>
+                    {% endif %}
+                </div>
             </div>
-            {% endif %}
         </div>
         {% else %}
         <div class="col-12 text-center">
