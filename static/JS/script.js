@@ -1,7 +1,7 @@
 // sqush.io frontend interactions (optimized for smooth 60fps rendering)
 document.addEventListener('DOMContentLoaded', () => {
 
-    //  Review vote buttons (event delegation instead of one listener per button)
+    // Review vote buttons (event delegation instead of one listener per button)
     document.addEventListener('click', (e) => {
         const btn = e.target.closest('.vote-btn');
         if (!btn) return;
@@ -9,10 +9,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const reviewId = btn.getAttribute('data-review-id');
         const voteType = btn.getAttribute('data-vote-type');
         fetch(`/vote_review/${reviewId}/${voteType}`, { method: 'POST' })
-            .then(res => res.json())
+            .then(res => {
+                if (res.status === 401 || res.redirected) {
+                    window.location.href = "/login";
+                    return null;
+                }
+                return res.json();
+            })
             .then(data => {
-                btn.closest('.card-body').querySelector('.helpful-count').textContent = data.helpful;
-                btn.closest('.card-body').querySelector('.funny-count').textContent = data.funny;
+                if (!data) return;
+                const cardBody = btn.closest('.card-body');
+                if (cardBody) {
+                    const helpfulSpan = cardBody.querySelector('.helpful-count');
+                    const funnySpan = cardBody.querySelector('.funny-count');
+                    if (helpfulSpan && data.helpful !== undefined) helpfulSpan.textContent = data.helpful;
+                    if (funnySpan && data.funny !== undefined) funnySpan.textContent = data.funny;
+                }
             })
             .catch(err => console.error("Vote Mistake:", err));
     });
@@ -38,16 +50,23 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(data => {
                 if (!data) return;
 
-                const icon = btn.querySelector('i');
-                if (data.on_wishlist) {
-                    btn.classList.add('active');
-                    icon.classList.remove('bi-heart');
-                    icon.classList.add('bi-heart-fill');
-                } else {
-                    btn.classList.remove('active');
-                    icon.classList.remove('bi-heart-fill');
-                    icon.classList.add('bi-heart');
-                }
+                // Sync all wishlist buttons with the same game ID on the page
+                document.querySelectorAll(`.wishlist-btn[data-game-id="${gameId}"]`).forEach(b => {
+                    const icon = b.querySelector('i');
+                    if (data.on_wishlist) {
+                        b.classList.add('active');
+                        if (icon) {
+                            icon.classList.remove('bi-heart');
+                            icon.classList.add('bi-heart-fill');
+                        }
+                    } else {
+                        b.classList.remove('active');
+                        if (icon) {
+                            icon.classList.remove('bi-heart-fill');
+                            icon.classList.add('bi-heart');
+                        }
+                    }
+                });
 
                 // when deleting it from the wishlist never see it again on the page
                 if (!data.on_wishlist && document.getElementById('wishlistGrid')) {
@@ -98,21 +117,26 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(data => {
                 if (!data) return;
                 
-                const icon = btn.querySelector("i");
-                if (data.in_cart) {
-                    btn.classList.add("active");
-                    icon.classList.replace("bi-cart-plus", "bi-cart-fill");
-                } else {
-                    btn.classList.remove("active");
-                    icon.classList.replace("bi-cart-fill", "bi-cart-plus");
-                    
-                    // If we are on the cart page, remove the item's row
-                    if (window.location.pathname === "/cart") {
-                        const row = document.getElementById(`cart-item-${gameId}`);
-                        if (row) row.remove();
-                        // Realistically we'd recalculate the total price here, but let's just reload for simplicity
-                        window.location.reload();
+                // Sync all cart buttons with the same game ID on the page
+                document.querySelectorAll(`.cart-btn[data-game-id="${gameId}"]`).forEach(b => {
+                    const icon = b.querySelector("i");
+                    const label = b.querySelector(".cart-btn-label");
+                    if (data.in_cart) {
+                        b.classList.add("active");
+                        if (icon) icon.classList.replace("bi-cart-plus", "bi-cart-fill");
+                        if (label) label.textContent = "IN CART";
+                    } else {
+                        b.classList.remove("active");
+                        if (icon) icon.classList.replace("bi-cart-fill", "bi-cart-plus");
+                        if (label) label.textContent = "ADD TO CART";
                     }
+                });
+
+                // If we are on the cart page, remove the item's row
+                if (!data.in_cart && window.location.pathname === "/cart") {
+                    const row = document.getElementById(`cart-item-${gameId}`);
+                    if (row) row.remove();
+                    window.location.reload();
                 }
                 
                 // Update all badge counts!
@@ -135,8 +159,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 cartCheckoutBtn.addEventListener("click", (e) => {
                     e.preventDefault();
                     fetch("/create-cart-checkout-session")
-                        .then((result) => result.json())
+                        .then((result) => {
+                            if (result.status === 401 || result.redirected) {
+                                window.location.href = "/login";
+                                return null;
+                            }
+                            return result.json();
+                        })
                         .then((data) => {
+                            if (!data) return;
                             if (data.error) {
                                 alert(data.error);
                                 return;
@@ -149,9 +180,8 @@ document.addEventListener('DOMContentLoaded', () => {
             .catch((err) => { console.error("Stripe config Fehler:", err); });
     }
 
-    //  Stripe checkout
+    // Stripe checkout
     // Only hit /config (and init Stripe) on pages that actually have a buy button.
-    // Previously this fetch ran on every single page load, even ones without checkout.
     const submitBtn = document.querySelector("#submitBtn");
     if (submitBtn) {
         fetch("/config")
@@ -161,10 +191,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 submitBtn.addEventListener("click", (e) => {
                     e.preventDefault();
-                    const gameId = e.target.getAttribute("data-game-id");
+                    const gameId = submitBtn.getAttribute("data-game-id");
                     fetch(`/create-checkout-session/${gameId}`)
-                        .then((result) => result.json())
+                        .then((result) => {
+                            if (result.status === 401 || result.redirected) {
+                                window.location.href = "/login";
+                                return null;
+                            }
+                            return result.json();
+                        })
                         .then((data) => {
+                            if (!data) return;
+                            if (data.error) {
+                                alert(data.error);
+                                return;
+                            }
                             return stripe.redirectToCheckout({ sessionId: data.sessionId });
                         })
                         .catch((err) => { console.error("Stripe Fehler:", err); });
@@ -623,7 +664,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 5000);
     }
 
-    // up down butons on update page
+    // up down buttons on update page
     document.addEventListener('click', (e) => {
         const btn = e.target.closest('.update-vote-btn');
         if (!btn) return;
@@ -635,9 +676,15 @@ document.addEventListener('DOMContentLoaded', () => {
             method: "POST",
             headers: { "Content-Type": "application/json" }
         })
-            .then(res => res.json())
+            .then(res => {
+                if (res.status === 401 || res.redirected) {
+                    window.location.href = "/login";
+                    return null;
+                }
+                return res.json();
+            })
             .then(data => {
-                if (data.upvotes === undefined) return;
+                if (!data || data.upvotes === undefined) return;
 
                 // updating both buttons
                 document.querySelectorAll(`.update-vote-btn[data-update-id="${updateId}"]`).forEach(b => {
@@ -668,19 +715,30 @@ document.addEventListener('DOMContentLoaded', () => {
             method: "POST",
             headers: { "Content-Type": "application/json" }
         })
-            .then(res => res.json())
+            .then(res => {
+                if (res.status === 401 || res.redirected) {
+                    window.location.href = "/login";
+                    return null;
+                }
+                return res.json();
+            })
             .then(data => {
+                if (!data) return;
                 // there can be several follow buttons on the page
                 document.querySelectorAll(`.follow-game-btn[data-game-id="${gameId}"]`).forEach(b => {
                     const bIcon = b.querySelector("i");
                     if (data.following) {
                         b.classList.add("active");
-                        bIcon.classList.remove("bi-bell");
-                        bIcon.classList.add("bi-bell-fill");
+                        if (bIcon) {
+                            bIcon.classList.remove("bi-bell");
+                            bIcon.classList.add("bi-bell-fill");
+                        }
                     } else {
                         b.classList.remove("active");
-                        bIcon.classList.remove("bi-bell-fill");
-                        bIcon.classList.add("bi-bell");
+                        if (bIcon) {
+                            bIcon.classList.remove("bi-bell-fill");
+                            bIcon.classList.add("bi-bell");
+                        }
                     }
                 });
             })

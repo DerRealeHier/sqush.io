@@ -719,9 +719,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 } else {
                     syncAllColBtns(colId, gameId, false);
                     const row = document.getElementById(`col-row-${colId}-${gameId}`);
-                    if (row) { row.style.opacity = "0"; setTimeout(() => row.remove(), 300); }
+                    if (row) {
+                        row.style.opacity = "0";
+                        setTimeout(() => {
+                            row.remove();
+                            updateCountBadge(colId);
+                        }, 300);
+                    } else {
+                        updateCountBadge(colId);
+                    }
                 }
-                updateCountBadge(colId);
             } catch(err) { console.error(err); }
         });
     });

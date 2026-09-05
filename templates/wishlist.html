@@ -16,13 +16,13 @@
             {% if current_user.is_authenticated %}
             <!-- Notification Bell -->
             <div class="dropdown">
-                <a class="hud-icon-btn position-relative" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Notifications">
+                <a class="hud-icon-btn position-relative" href="#" id="notifDropdownToggle" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Notifications">
                     <i class="bi bi-bell-fill"></i>
                     {% if unread_count > 0 %}
                     <span class="hud-count-badge">{{ unread_count }}</span>
                     {% endif %}
                 </a>
-                <div class="dropdown-menu dropdown-menu-end comic-notif-menu" aria-labelledby="dropdownMenuButton">
+                <div class="dropdown-menu dropdown-menu-end comic-notif-menu" aria-labelledby="notifDropdownToggle">
                     <div class="comic-notif-header">
                         <span class="comic-notif-title"><i class="bi bi-bell-fill"></i> Notifications</span>
                         {% if unread_count > 0 %}

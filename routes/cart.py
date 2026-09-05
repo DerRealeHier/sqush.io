@@ -58,37 +58,52 @@ def cart_add(game_id):
 
 
 @cart_bp.route("/cart/remove/<int:game_id>", methods=["POST"])
-@login_required
 def cart_remove(game_id):
-    CartItem.query.filter_by(user_id=current_user.id, game_id=game_id).delete()
-    db.session.commit()
-    cart_count = CartItem.query.filter_by(user_id=current_user.id).count()
+    if current_user.is_authenticated:
+        CartItem.query.filter_by(user_id=current_user.id, game_id=game_id).delete()
+        db.session.commit()
+        cart_count = CartItem.query.filter_by(user_id=current_user.id).count()
+    else:
+        guest_cart = session.get("guest_cart", [])
+        if game_id in guest_cart:
+            guest_cart.remove(game_id)
+            session["guest_cart"] = guest_cart
+            session.modified = True
+        cart_count = len(session.get("guest_cart", []))
     return jsonify(in_cart=False, cart_count=cart_count)
 
 
 @cart_bp.route("/cart")
-@login_required
 def cart_view():
-    owned_ids = {
-        p.game_id
-        for p in Purchase.query.filter_by(user_id=current_user.id, refunded=False).all()
-    }
-    # Silently drop stale items (games now owned via other means)
-    stale = CartItem.query.filter(
-        CartItem.user_id == current_user.id,
-        CartItem.game_id.in_(owned_ids)
-    ).all()
-    for item in stale:
-        db.session.delete(item)
-    if stale:
-        db.session.commit()
+    if current_user.is_authenticated:
+        owned_ids = {
+            p.game_id
+            for p in Purchase.query.filter_by(user_id=current_user.id, refunded=False).all()
+        }
+        # Silently drop stale items (games now owned via other means)
+        stale = CartItem.query.filter(
+            CartItem.user_id == current_user.id,
+            CartItem.game_id.in_(owned_ids)
+        ).all()
+        for item in stale:
+            db.session.delete(item)
+        if stale:
+            db.session.commit()
 
-    items = CartItem.query.filter_by(user_id=current_user.id).order_by(CartItem.added_at.desc()).all()
-    cart_games = []
-    for item in items:
-        g = item.game
-        g.display_price = calculate_display_price(g)
-        cart_games.append(g)
+        items = CartItem.query.filter_by(user_id=current_user.id).order_by(CartItem.added_at.desc()).all()
+        cart_games = []
+        for item in items:
+            g = item.game
+            g.display_price = calculate_display_price(g)
+            cart_games.append(g)
+    else:
+        guest_cart = session.get("guest_cart", [])
+        owned_ids = set()
+        games_list = Game.query.filter(Game.id.in_(guest_cart)).all() if guest_cart else []
+        cart_games = []
+        for g in games_list:
+            g.display_price = calculate_display_price(g)
+            cart_games.append(g)
 
     cart_total = round(sum(g.display_price for g in cart_games), 2)
     cart_game_ids = [g.id for g in cart_games]

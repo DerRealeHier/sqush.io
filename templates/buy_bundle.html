@@ -267,8 +267,15 @@
 
                         // Löst die Stripe Session in app.py aus
                         fetch(`/create-bundle-checkout-session/${bundleId}`)
-                            .then(response => response.json())
+                            .then(response => {
+                                if (response.status === 401 || response.redirected) {
+                                    window.location.href = "/login";
+                                    return null;
+                                }
+                                return response.json();
+                            })
                             .then(sessionData => {
+                                if (!sessionData) return;
                                 if (sessionData.error) {
                                     alert(sessionData.error);
                                     bundleBtn.innerText = "Buy it!";

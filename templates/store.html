@@ -100,13 +100,13 @@
             {% if current_user.is_authenticated %}
             <!-- Notification Bell -->
             <div class="dropdown">
-                <a class="hud-icon-btn position-relative" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Notifications">
+                <a class="hud-icon-btn position-relative" href="#" id="notifDropdownToggle" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Notifications">
                     <i class="bi bi-bell-fill"></i>
                     {% if unread_count > 0 %}
                     <span class="hud-count-badge">{{ unread_count }}</span>
                     {% endif %}
                 </a>
-                <div class="dropdown-menu dropdown-menu-end comic-notif-menu" aria-labelledby="dropdownMenuButton">
+                <div class="dropdown-menu dropdown-menu-end comic-notif-menu" aria-labelledby="notifDropdownToggle">
                     <div class="comic-notif-header">
                         <span class="comic-notif-title"><i class="bi bi-bell-fill"></i> Notifications</span>
                         {% if unread_count > 0 %}
@@ -225,6 +225,19 @@
 </div>
 
 <div class="container py-5">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="mb-4">
+        {% for category, message in messages %}
+        <div class="comic-frame mb-3 py-3 px-4 fw-bold d-flex align-items-center gap-3 fs-5"
+             style="background:{% if category=='error' %}var(--red); color:#fff;{% elif category=='warning' %}var(--yellow); color:#000;{% else %}var(--green); color:#000;{% endif %}; border: 3px solid #000; box-shadow: 6px 6px 0 #000;">
+            <i class="bi {% if category=='error' %}bi-exclamation-triangle-fill{% elif category=='warning' %}bi-exclamation-circle-fill{% else %}bi-check-circle-fill{% endif %} fs-3"></i>
+            <span>{{ message }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
 
     {% if bundles %}
     <div class="genre-section mb-5">
