@@ -171,7 +171,7 @@
                         {% endif %}
                     </div>
                     <div class="comic-notif-list">
-                        {% for notif in current_user.notifications[-5:] %}
+                        {% for notif in recent_notifications %}
                         <a href="{{ url_for('read_notification', notif_id=notif.id) }}"
                            class="comic-notif-item {% if not notif.is_read %}is-unread{% endif %}">
                             <div class="comic-notif-icon-box type-{{ notif.type }}">

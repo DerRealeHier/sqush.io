@@ -1,20 +1,4 @@
-console.log("Sanity check");
-
-let players = {};
-// yea boy thats just keeping track of all the youtube instances
-function onYouTubeIframeAPIReady() {
-    document.querySelectorAll('.yt-player-iframe').forEach(iframe => {
-        players[iframe.id] = new YT.Player(iframe.id, {
-            events: {
-                'onReady': function(event) {
-                    event.target.mute();
-                }
-            }
-        });
-    });
-}
-
-//I had two DOMContentLoader before, so I merged them into one
+// sqush.io frontend interactions (optimized for smooth 60fps rendering)
 document.addEventListener('DOMContentLoaded', () => {
 
     //  Review vote buttons (event delegation instead of one listener per button)
@@ -325,67 +309,85 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Sale countdown timers
-    // Yea for some reason I had two timers before, and one just
-    // blew away the memory and CPU usage. Should be fixed now.
+    // Centralized single interval for countdown timers (replaces N intervals with 1)
     const timerElements = document.querySelectorAll(".timer");
-    timerElements.forEach(timerElement => {
-        const dateStr = timerElement.getAttribute("data-end");
-        if (!dateStr) return; // skip when no date
-
-        const endDate = new Date(dateStr).getTime();
-
-        const interval = setInterval(() => {
-            const now = new Date().getTime();
-            const distance = endDate - now;
-
-            if (distance < 0) {
-                clearInterval(interval);
-                timerElement.innerHTML = "SALE ENDED";
-                return;
+    if (timerElements.length > 0) {
+        const timerData = [];
+        timerElements.forEach(el => {
+            const dateStr = el.getAttribute("data-end");
+            if (dateStr) {
+                timerData.push({
+                    el: el,
+                    display: el.querySelector(".countdown"),
+                    endTime: new Date(dateStr).getTime()
+                });
             }
+        });
 
-            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-
-            const display = timerElement.querySelector(".countdown");
-            if (display) {
-                display.innerHTML = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+        function updateAllTimers() {
+            const now = Date.now();
+            for (let i = timerData.length - 1; i >= 0; i--) {
+                const t = timerData[i];
+                const distance = t.endTime - now;
+                if (distance <= 0) {
+                    t.el.innerHTML = "SALE ENDED";
+                    timerData.splice(i, 1);
+                } else if (t.display) {
+                    const days = Math.floor(distance / 86400000);
+                    const hours = Math.floor((distance % 86400000) / 3600000);
+                    const minutes = Math.floor((distance % 3600000) / 60000);
+                    const seconds = Math.floor((distance % 60000) / 1000);
+                    t.display.textContent = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+                }
             }
-        }, 1000);
-    });
+            if (timerData.length === 0) {
+                clearInterval(centralTimerInterval);
+            }
+        }
+        updateAllTimers();
+        const centralTimerInterval = setInterval(updateAllTimers, 1000);
+    }
 
-    // Searchfunction for home
+    // Debounced, in-memory home game search
     const gameSearch = document.getElementById('gameSearch');
     if (gameSearch) {
-        gameSearch.addEventListener('input', function(e) {
-            const query = e.target.value.toLowerCase().trim();
-            const items = document.querySelectorAll('.game-item');
-            let visibleCount = 0;
+        const homeItems = Array.from(document.querySelectorAll('#gamesGrid .game-item')).map(item => ({
+            el: item,
+            title: (item.getAttribute('data-title') || '').toLowerCase(),
+        }));
+        const noMatchMsg = document.getElementById('noMatchMessage');
 
-            items.forEach(item => {
-                if (item.getAttribute('data-title').includes(query)) {
-                    item.classList.remove('d-none');
+        function runGameSearch() {
+            const query = gameSearch.value.toLowerCase().trim();
+            let visibleCount = 0;
+            homeItems.forEach(item => {
+                const match = !query || item.title.includes(query);
+                if (match) {
+                    item.el.classList.remove('d-none');
                     visibleCount++;
                 } else {
-                    item.classList.add('d-none');
+                    item.el.classList.add('d-none');
                 }
             });
-
-            const noMatchMsg = document.getElementById('noMatchMessage');
             if (noMatchMsg) {
-                if (visibleCount === 0 && items.length > 0) {
+                if (visibleCount === 0 && homeItems.length > 0) {
                     noMatchMsg.classList.remove('d-none');
                 } else {
                     noMatchMsg.classList.add('d-none');
                 }
             }
+        }
+
+        let homeSearchTimer;
+        gameSearch.addEventListener('input', () => {
+            clearTimeout(homeSearchTimer);
+            homeSearchTimer = setTimeout(() => {
+                requestAnimationFrame(runGameSearch);
+            }, 60);
         });
     }
 
-    //Filtering for the store (multi select genres/tags + price range)
+    // High-performance store filtering with in-memory caching and RAF
     const storeSearch = document.getElementById('storeSearch');
     const genreCheckboxes = document.querySelectorAll('.genre-checkbox');
     const tagCheckboxes = document.querySelectorAll('.tag-checkbox');
@@ -393,98 +395,134 @@ document.addEventListener('DOMContentLoaded', () => {
     const priceMaxFilter = document.getElementById('priceMaxFilter');
     const saleFilter = document.getElementById('saleFilter');
     const clearFiltersBtn = document.getElementById('clearFiltersBtn');
-    const gameItems = document.querySelectorAll('.store-game-item');
+    const rawGameItems = document.querySelectorAll('.store-game-item');
     const genreHeadings = document.querySelectorAll('.genre-heading');
     const storeNoMatchMsg = document.getElementById('storeNoMatchMessage');
     const genreActiveCount = document.getElementById('genreActiveCount');
     const tagActiveCount = document.getElementById('tagActiveCount');
 
-    function getCheckedValues(checkboxes) {
-        return Array.from(checkboxes)
-            .filter(cb => cb.checked)
-            .map(cb => cb.value.toLowerCase());
-    }
+    if (storeSearch && priceMinFilter && priceMaxFilter && saleFilter && rawGameItems.length > 0) {
+        // Cache game item attributes in memory once to avoid DOM reads & JSON.parse on each keystroke
+        const cachedStoreGames = Array.from(rawGameItems).map(item => {
+            let tags = [];
+            try {
+                tags = JSON.parse(item.getAttribute('data-tags') || "[]");
+            } catch (err) {
+                tags = [];
+            }
+            return {
+                el: item,
+                title: (item.getAttribute('data-title') || '').toLowerCase(),
+                genre: (item.getAttribute('data-genre') || '').toLowerCase(),
+                genreRaw: item.getAttribute('data-genre') || '',
+                price: parseFloat(item.getAttribute('data-price')) || 0,
+                isSale: item.getAttribute('data-sale') === 'true',
+                tagsSet: new Set(tags.map(t => (t || '').toLowerCase())),
+            };
+        });
 
-    function updateActiveCountBadge(badgeEl, count) {
-        if (!badgeEl) return;
-        if (count > 0) {
-            badgeEl.textContent = `(${count})`;
-            badgeEl.classList.remove('d-none');
-        } else {
-            badgeEl.classList.add('d-none');
+        function getCheckedValues(checkboxes) {
+            const vals = [];
+            for (let i = 0; i < checkboxes.length; i++) {
+                if (checkboxes[i].checked) vals.push(checkboxes[i].value.toLowerCase());
+            }
+            return vals;
         }
-    }
 
-    function filterGames() {
-        const query = storeSearch.value.toLowerCase().trim();
-        // Mehrere Genres gleichzeitig moeglich -> leer heisst "alle"
-        const selectedGenres = getCheckedValues(genreCheckboxes);
-        // Mehrere Tags gleichzeitig moeglich -> leer heisst "alle"
-        const selectedTags = getCheckedValues(tagCheckboxes);
-        const minPrice = parseFloat(priceMinFilter.value);
-        const maxPrice = parseFloat(priceMaxFilter.value);
-        const onlySale = saleFilter.checked;
+        function updateActiveCountBadge(badgeEl, count) {
+            if (!badgeEl) return;
+            if (count > 0) {
+                badgeEl.textContent = `(${count})`;
+                badgeEl.classList.remove('d-none');
+            } else {
+                badgeEl.classList.add('d-none');
+            }
+        }
 
-        updateActiveCountBadge(genreActiveCount, selectedGenres.length);
-        updateActiveCountBadge(tagActiveCount, selectedTags.length);
+        function applyStoreFilters() {
+            const query = storeSearch.value.toLowerCase().trim();
+            const selectedGenres = getCheckedValues(genreCheckboxes);
+            const selectedTags = getCheckedValues(tagCheckboxes);
+            const minPrice = parseFloat(priceMinFilter.value);
+            const maxPrice = parseFloat(priceMaxFilter.value);
+            const onlySale = saleFilter.checked;
 
-        let matches = 0;
-        // how many visible games per genre disappears when no games are visible
-        const visibleCountByGenre = {};
+            updateActiveCountBadge(genreActiveCount, selectedGenres.length);
+            updateActiveCountBadge(tagActiveCount, selectedTags.length);
 
-        gameItems.forEach(item => {
-            const itemTitle = item.getAttribute('data-title');
-            const itemGenre = item.getAttribute('data-genre');
-            const itemPrice = parseFloat(item.getAttribute('data-price'));
-            const itemIsSale = item.getAttribute('data-sale') === 'true';
-            const itemTags = JSON.parse(item.getAttribute('data-tags') || "[]");
+            let matches = 0;
+            const visibleCountByGenre = Object.create(null);
 
-            const matchTitle = itemTitle.includes(query);
-            // Genre matcht, wenn keins ausgewaehlt ist ODER das Spiel in einem der ausgewaehlten Genres ist
-            const matchGenre = selectedGenres.length === 0 || selectedGenres.includes(itemGenre.toLowerCase());
-            // Tag matcht, wenn keins ausgewaehlt ist ODER mindestens einer der ausgewaehlten Tags dabei ist
-            const matchTags = selectedTags.length === 0 || selectedTags.some(t => itemTags.includes(t));
-            const matchMinPrice = isNaN(minPrice) || itemPrice >= minPrice;
-            const matchMaxPrice = isNaN(maxPrice) || itemPrice <= maxPrice;
-            const matchSale = !onlySale || itemIsSale;
+            const hasGenres = selectedGenres.length > 0;
+            const hasTags = selectedTags.length > 0;
+            const checkMinPrice = !isNaN(minPrice);
+            const checkMaxPrice = !isNaN(maxPrice);
 
-            const isVisible = matchTitle && matchGenre && matchTags && matchMinPrice && matchMaxPrice && matchSale;
+            for (let i = 0; i < cachedStoreGames.length; i++) {
+                const item = cachedStoreGames[i];
+                if (query && !item.title.includes(query)) {
+                    item.el.classList.add('d-none');
+                    continue;
+                }
+                if (hasGenres && !selectedGenres.includes(item.genre)) {
+                    item.el.classList.add('d-none');
+                    continue;
+                }
+                if (hasTags && !selectedTags.some(t => item.tagsSet.has(t))) {
+                    item.el.classList.add('d-none');
+                    continue;
+                }
+                if (checkMinPrice && item.price < minPrice) {
+                    item.el.classList.add('d-none');
+                    continue;
+                }
+                if (checkMaxPrice && item.price > maxPrice) {
+                    item.el.classList.add('d-none');
+                    continue;
+                }
+                if (onlySale && !item.isSale) {
+                    item.el.classList.add('d-none');
+                    continue;
+                }
 
-            if (isVisible) {
-                item.classList.remove('d-none');
+                item.el.classList.remove('d-none');
                 matches++;
-                visibleCountByGenre[itemGenre] = (visibleCountByGenre[itemGenre] || 0) + 1;
-            } else {
-                item.classList.add('d-none');
+                visibleCountByGenre[item.genreRaw] = (visibleCountByGenre[item.genreRaw] || 0) + 1;
             }
-        });
 
-        //  dont see the title of the game if it isnt visible
-        genreHeadings.forEach(heading => {
-            const genre = heading.getAttribute('data-genre-heading');
-            if ((visibleCountByGenre[genre] || 0) > 0) {
-                heading.classList.remove('d-none');
-            } else {
-                heading.classList.add('d-none');
+            for (let j = 0; j < genreHeadings.length; j++) {
+                const heading = genreHeadings[j];
+                const genre = heading.getAttribute('data-genre-heading');
+                if (visibleCountByGenre[genre]) {
+                    heading.classList.remove('d-none');
+                } else {
+                    heading.classList.add('d-none');
+                }
             }
-        });
 
-        if (storeNoMatchMsg) {
-            if (matches === 0 && gameItems.length > 0) {
-                storeNoMatchMsg.classList.remove('d-none');
-            } else {
-                storeNoMatchMsg.classList.add('d-none');
+            if (storeNoMatchMsg) {
+                if (matches === 0 && cachedStoreGames.length > 0) {
+                    storeNoMatchMsg.classList.remove('d-none');
+                } else {
+                    storeNoMatchMsg.classList.add('d-none');
+                }
             }
         }
-    }
 
-    if (storeSearch && priceMinFilter && priceMaxFilter && saleFilter && gameItems.length > 0) {
-        storeSearch.addEventListener('input', filterGames);
-        priceMinFilter.addEventListener('input', filterGames);
-        priceMaxFilter.addEventListener('input', filterGames);
-        saleFilter.addEventListener('change', filterGames);
-        genreCheckboxes.forEach(cb => cb.addEventListener('change', filterGames));
-        tagCheckboxes.forEach(cb => cb.addEventListener('change', filterGames));
+        let storeFilterTimer;
+        function scheduleStoreFilters() {
+            clearTimeout(storeFilterTimer);
+            storeFilterTimer = setTimeout(() => {
+                requestAnimationFrame(applyStoreFilters);
+            }, 60);
+        }
+
+        storeSearch.addEventListener('input', scheduleStoreFilters);
+        priceMinFilter.addEventListener('input', scheduleStoreFilters);
+        priceMaxFilter.addEventListener('input', scheduleStoreFilters);
+        saleFilter.addEventListener('change', scheduleStoreFilters);
+        genreCheckboxes.forEach(cb => cb.addEventListener('change', scheduleStoreFilters));
+        tagCheckboxes.forEach(cb => cb.addEventListener('change', scheduleStoreFilters));
 
         if (clearFiltersBtn) {
             clearFiltersBtn.addEventListener('click', () => {
@@ -494,40 +532,70 @@ document.addEventListener('DOMContentLoaded', () => {
                 saleFilter.checked = false;
                 genreCheckboxes.forEach(cb => cb.checked = false);
                 tagCheckboxes.forEach(cb => cb.checked = false);
-                filterGames();
+                applyStoreFilters();
             });
         }
 
-        // so we start it one time in the browser
-        filterGames();
+        applyStoreFilters();
     }
 
-    // Hover to preview video for home and store cards
+    // High-performance Lazy Video Preview on card hover
     document.querySelectorAll('.game-card, .home-sale-card').forEach(card => {
-        const videoType = card.getAttribute('data-video-type');
+        const slot = card.querySelector('.game-video-slot');
+        const localVideo = card.querySelector('video.game-video');
+        const videoType = card.getAttribute('data-video-type') || (slot ? slot.dataset.videoType : (localVideo ? 'local' : 'none'));
         if (!videoType || videoType === 'none') return;
 
-        card.addEventListener('mouseenter', function() {
-            if (videoType === 'youtube') {
-                const ytId = card.getAttribute('data-yt-id');
-                if (players[ytId] && typeof players[ytId].playVideo === 'function') {
-                    players[ytId].playVideo();
+        let hoverTimeout = null;
+
+        card.addEventListener('mouseenter', () => {
+            hoverTimeout = setTimeout(() => {
+                if (videoType === 'youtube') {
+                    const ytId = card.getAttribute('data-yt-id') || (slot ? slot.dataset.ytId : null);
+                    if (!ytId) return;
+
+                    let iframe = card.querySelector('.game-video-iframe');
+                    if (!iframe) {
+                        iframe = document.createElement('iframe');
+                        iframe.className = 'game-video game-video-iframe';
+                        iframe.src = `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&mute=1&controls=0&rel=0&playsinline=1&modestbranding=1`;
+                        iframe.setAttribute('allow', 'autoplay; encrypted-media');
+                        iframe.setAttribute('loading', 'lazy');
+                        const wrapper = card.querySelector('.home-card-img-wrapper, .game-img-wrapper');
+                        if (wrapper) wrapper.appendChild(iframe);
+                    }
+                    requestAnimationFrame(() => {
+                        if (iframe) iframe.style.opacity = '1';
+                    });
+                } else if (videoType === 'local' && localVideo) {
+                    if (!localVideo.src && localVideo.dataset.src) {
+                        localVideo.src = localVideo.dataset.src;
+                    }
+                    localVideo.style.opacity = '1';
+                    localVideo.play().catch(() => {});
                 }
-            } else if (videoType === 'local') {
-                const video = card.querySelector('video');
-                if (video) video.play();
-            }
+            }, 180); // 180ms hover debounce prevents unneeded video loading on quick cursor passing
         });
 
-        card.addEventListener('mouseleave', function() {
+        card.addEventListener('mouseleave', () => {
+            if (hoverTimeout) {
+                clearTimeout(hoverTimeout);
+                hoverTimeout = null;
+            }
             if (videoType === 'youtube') {
-                const ytId = card.getAttribute('data-yt-id');
-                if (players[ytId] && typeof players[ytId].pauseVideo === 'function') {
-                    players[ytId].pauseVideo();
+                const iframe = card.querySelector('.game-video-iframe');
+                if (iframe) {
+                    iframe.style.opacity = '0';
+                    setTimeout(() => {
+                        if (iframe.parentNode) {
+                            iframe.src = 'about:blank';
+                            iframe.remove();
+                        }
+                    }, 250);
                 }
-            } else if (videoType === 'local') {
-                const video = card.querySelector('video');
-                if (video) video.pause();
+            } else if (videoType === 'local' && localVideo) {
+                localVideo.pause();
+                localVideo.style.opacity = '0';
             }
         });
     });

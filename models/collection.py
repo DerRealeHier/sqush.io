@@ -6,7 +6,7 @@ from extensions import db
 class Collection(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
     name = db.Column(db.String(80), nullable=False)
     description = db.Column(db.String(250), nullable=True)
     color = db.Column(db.String(7), default="#ffeb3b")  # Hex accent colour shown as left border
@@ -22,8 +22,8 @@ class Collection(db.Model):
 class CollectionGame(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
-    collection_id = db.Column(db.Integer, db.ForeignKey("collection.id"), nullable=False)
-    game_id = db.Column(db.Integer, db.ForeignKey("game.id"), nullable=False)
+    collection_id = db.Column(db.Integer, db.ForeignKey("collection.id"), nullable=False, index=True)
+    game_id = db.Column(db.Integer, db.ForeignKey("game.id"), nullable=False, index=True)
     added_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     collection = db.relationship(

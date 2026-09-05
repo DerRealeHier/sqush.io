@@ -248,21 +248,19 @@ def get_user_badges(user: User) -> list:
 
 
 def get_featured_badge(user: User):
-    # returns the badge metadata dict for the user's currently showcased/featured badge.
-    # When the user is too lazy to showcase a badge it falls back to the highest priority unlocked badge.
     if not user or not user.id:
         return None
 
-    unlocked_badges = get_user_badges(user)
-    if not unlocked_badges:
-        return None
-
     if user.featured_badge_key:
-        for b in unlocked_badges:
-            if b["key"] == user.featured_badge_key:
-                return b
+        defn = get_badge_definition(user.featured_badge_key)
+        if defn:
+            badge_item = dict(defn)
+            badge_item["unlocked"] = True
+            badge_item["is_featured"] = True
+            badge_item["priority"] = TIER_PRIORITY.get(defn.get("tier"), 10)
+            return badge_item
 
-    # Default to top badge if none explicitly equipped
+    unlocked_badges = get_user_badges(user)
     return unlocked_badges[0] if unlocked_badges else None
 
 

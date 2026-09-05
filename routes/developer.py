@@ -523,13 +523,15 @@ def developer_revenue():
         game_tips = calculate_game_tips(game)
         total_revenue += game_revenue
         total_tips += game_tips
+        sales_count = Purchase.query.filter_by(game_id=game.id, refunded=False).count()
+        tips_count = Tip.query.filter_by(game_id=game.id).count()
         revenue_data.append({
             "game": game,
             "revenue": game_revenue,
             "tips": game_tips,
             "total_earned": game_revenue + game_tips,
-            "sales_count": len(game.purchases),
-            "tips_count": len(game.tips),
+            "sales_count": sales_count,
+            "tips_count": tips_count,
         })
 
     # highest earner first. Don't give anything to these poor. (tips count too now :D)

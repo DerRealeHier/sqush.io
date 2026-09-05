@@ -62,41 +62,51 @@ def get_popular_games(exclude_ids=None, limit=6):
     return query.limit(limit).all()
 
 
+_rec_cache = {}
+_REC_CACHE_TTL = 60  # seconds
+
+
 def get_recommended_games(user, limit=6):
-    """
-    All of this code is fine for a small store, but it's not going to scale well...
-    Its because of the Game.query.all() call. If you wanna use this for a large store, you should
-    use real tag tables! If you dont then it might become a problem.
-    """
     if not user.is_authenticated:
         return []
 
+    # Check fast in-memory cache
+    now_ts = datetime.now(timezone.utc).timestamp()
+    cached = _rec_cache.get(user.id)
+    if cached and (now_ts - cached["time"] < _REC_CACHE_TTL):
+        cached_ids = cached["ids"][:limit]
+        if cached_ids:
+            games_by_id = {g.id: g for g in Game.query.filter(Game.id.in_(cached_ids)).all()}
+            return [games_by_id[gid] for gid in cached_ids if gid in games_by_id]
+
     my_owned_ids = {
-        p.game_id
-        for p in Purchase.query.filter_by(user_id=user.id, refunded=False).all()
+        row[0]
+        for row in db.session.query(Purchase.game_id)
+        .filter_by(user_id=user.id, refunded=False)
+        .all()
     }
 
     if not my_owned_ids:
-        # Fresh account; I'll recommend the most popular games. xD
+        # Fresh account; recommend popular games
         return get_popular_games(exclude_ids=set(), limit=limit)
 
     all_games = Game.query.all()
     games_by_id = {g.id: g for g in all_games}
 
-    # mmy personal tag cloud build from everything I own ):
+    # Personal tag cloud built from owned games
     my_tags = set()
     for gid in my_owned_ids:
         game = games_by_id.get(gid)
         if game:
             my_tags |= _get_tag_set(game)
 
-    all_purchases = Purchase.query.all()
-    # yea im going into both directions.
+    # Fast tuple queries instead of hydrating full ORM models
+    all_purchases = db.session.query(Purchase.game_id, Purchase.user_id).filter_by(refunded=False).all()
     owners_by_game = {}
     games_by_user = {}
-    for p in all_purchases:
-        owners_by_game.setdefault(p.game_id, set()).add(p.user_id)
-        games_by_user.setdefault(p.user_id, set()).add(p.game_id)
+    for game_id, user_id in all_purchases:
+        owners_by_game.setdefault(game_id, set()).add(user_id)
+        games_by_user.setdefault(user_id, set()).add(game_id)
 
     # Who owns at least one game with a same tag as mine?
     tag_similar_user_ids = set()
@@ -123,7 +133,7 @@ def get_recommended_games(user, limit=6):
     scores = {}
     for game in all_games:
         if game.id in my_owned_ids:
-            continue  # you already own it, go buy it for your friend. (Just found out that I don't have this feature yet xD)
+            continue
 
         owners = owners_by_game.get(game.id, set())
         wishlisters = wishlisters_by_game.get(game.id, set())
@@ -132,17 +142,15 @@ def get_recommended_games(user, limit=6):
         popularity_score = len(owners)
         similar_wishlist_score = len(wishlisters & similar_library_user_ids)
 
-        # yeah popularity is the least important factor, but it's still there.'
         total_score = (tag_score * 3) + (similar_wishlist_score * 2) + (popularity_score * 1)
-
         if total_score > 0:
             scores[game.id] = total_score
 
     if not scores:
-        #nothing matched so its kept empty
         return get_popular_games(exclude_ids=my_owned_ids, limit=limit)
 
     top_ids = sorted(scores, key=lambda gid: scores[gid], reverse=True)[:limit]
+    _rec_cache[user.id] = {"time": now_ts, "ids": top_ids}
     return [games_by_id[gid] for gid in top_ids]
 
 

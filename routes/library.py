@@ -14,7 +14,7 @@ library_bp = Blueprint("library", __name__)
 @library_bp.route("/library")
 @login_required
 def library():
-    purchases = Purchase.query.filter_by(
+    purchases = Purchase.query.options(db.joinedload(Purchase.game)).filter_by(
         user_id=current_user.id,
         refunded=False
     ).order_by(Purchase.purchased_at.desc()).all()
@@ -45,7 +45,7 @@ def library():
         })
 
     # Build collections context
-    collections = Collection.query.filter_by(user_id=current_user.id).order_by(Collection.created_at).all()
+    collections = Collection.query.options(db.joinedload(Collection.games)).filter_by(user_id=current_user.id).order_by(Collection.created_at).all()
 
     # Set of game IDs that belong to at least one collection (for "ungrouped" detection)
     assigned_game_ids = {

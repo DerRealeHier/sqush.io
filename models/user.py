@@ -6,9 +6,9 @@ from extensions import db
 
 class Friendship(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    sender_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    receiver_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    status = db.Column(db.String(20), default='pending')
+    sender_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    receiver_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    status = db.Column(db.String(20), default='pending', index=True)
 
     sender = db.relationship("User", foreign_keys=[sender_id])
     receiver = db.relationship("User", foreign_keys=[receiver_id])
@@ -46,6 +46,10 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
+    @property
+    def recent_notifications(self):
+        return Notification.query.filter_by(user_id=self.id).order_by(Notification.created_at.desc()).limit(5).all()
+
 
 class Notification(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -61,11 +65,11 @@ class Notification(db.Model):
 class ProfileComment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     # whose profile the comment was posted on
-    profile_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    profile_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
     # who wrote the comment? It's me xD
-    author_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    author_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
     content = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
 
     profile_user = db.relationship("User", foreign_keys=[profile_user_id], backref="profile_comments")
     author = db.relationship("User", foreign_keys=[author_id])
@@ -74,7 +78,7 @@ class ProfileComment(db.Model):
 class LoginOTP(db.Model):
     #short lived 2FA code sent by mail on every login. This happens every login
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
     code_hash = db.Column(db.String(250), nullable=False)
     expires_at = db.Column(db.DateTime, nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))

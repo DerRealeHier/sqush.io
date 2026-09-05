@@ -242,15 +242,15 @@ def updates_feed():
                 Purchase.refunded == False
             ).all()
         } if friend_ids else set()
-        updates = GameUpdate.query.filter(GameUpdate.game_id.in_(friend_game_ids)) \
+        updates = GameUpdate.query.options(db.joinedload(GameUpdate.game)).filter(GameUpdate.game_id.in_(friend_game_ids)) \
             .order_by(GameUpdate.created_at.desc()).all() if friend_game_ids else []
 
     elif tab == "all":
-        updates = GameUpdate.query.order_by(GameUpdate.created_at.desc()).all()
+        updates = GameUpdate.query.options(db.joinedload(GameUpdate.game)).order_by(GameUpdate.created_at.desc()).all()
 
     else:
         tab = "owned"
-        updates = GameUpdate.query.filter(GameUpdate.game_id.in_(owned_game_ids)) \
+        updates = GameUpdate.query.options(db.joinedload(GameUpdate.game)).filter(GameUpdate.game_id.in_(owned_game_ids)) \
             .order_by(GameUpdate.created_at.desc()).all() if owned_game_ids else []
 
     following_ids = {f.game_id for f in GameFollow.query.filter_by(user_id=current_user.id).all()}
@@ -312,7 +312,8 @@ def profile(username):
     ).first()
 
     # newest comments first. Who comes first is last ;)
-    comments = ProfileComment.query.filter_by(profile_user_id=target_user.id) \
+    comments = ProfileComment.query.options(db.joinedload(ProfileComment.author)) \
+        .filter_by(profile_user_id=target_user.id) \
         .order_by(ProfileComment.created_at.desc()).all()
 
     # Sync and load user badges

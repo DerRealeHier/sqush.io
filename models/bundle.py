@@ -12,13 +12,13 @@ class Bundle(db.Model):
     description = db.Column(db.Text)
     image_path = db.Column(db.String(250))
     discount_percent = db.Column(db.Integer, default=0, nullable=False)
-    is_published = db.Column(db.Boolean, default=False, nullable=False)
+    is_published = db.Column(db.Boolean, default=False, nullable=False, index=True)
     created_at = db.Column(
         db.DateTime,
         default=lambda: datetime.now(timezone.utc),
         nullable=False
     )
-    owner_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    owner_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
 
     owner = db.relationship(
         "User",
@@ -43,12 +43,14 @@ class BundleGame(db.Model):
     bundle_id = db.Column(
         db.Integer,
         db.ForeignKey("bundle.id"),
-        nullable=False
+        nullable=False,
+        index=True
     )
     game_id = db.Column(
         db.Integer,
         db.ForeignKey("game.id"),
-        nullable=False
+        nullable=False,
+        index=True
     )
 
     bundle = db.relationship(
@@ -75,17 +77,20 @@ class BundleCollaborator(db.Model):
     bundle_id = db.Column(
         db.Integer,
         db.ForeignKey("bundle.id"),
-        nullable=False
+        nullable=False,
+        index=True
     )
     user_id = db.Column(
         db.Integer,
         db.ForeignKey("user.id"),
-        nullable=False
+        nullable=False,
+        index=True
     )
     invited_by_id = db.Column(
         db.Integer,
         db.ForeignKey("user.id"),
-        nullable=False
+        nullable=False,
+        index=True
     )
     role = db.Column(
         db.String(20),
@@ -95,7 +100,8 @@ class BundleCollaborator(db.Model):
     status = db.Column(
         db.String(20),
         default="pending",
-        nullable=False
+        nullable=False,
+        index=True
     )
 
     bundle = db.relationship(

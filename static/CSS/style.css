@@ -39,8 +39,7 @@ a {
 /* Main background image banner with crisp pixel rendering */
 .BackgroundImage {
     background-color: #2196f3;
-    /*background-image: url("https://raw.githubusercontent.com/DerRealeHier/sqush.io/main/AI_generatedBackground.png");*/
-    background-image: url("https://raw.githubusercontent.com/DerRealeHier/sqush.io/main/pixel_art.png");
+    background-image: url("../images/pixel_art.png");
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -258,9 +257,16 @@ a {
     border: 4px solid #000000;
     border-radius: 0;
     box-shadow: 8px 8px 0px #000000;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
     position: relative;
     overflow: visible;
+    will-change: transform;
+    backface-visibility: hidden;
+}
+
+.store-game-item, #gamesGrid .game-item {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 380px;
 }
 
 .game-card:hover, .home-sale-card:hover {

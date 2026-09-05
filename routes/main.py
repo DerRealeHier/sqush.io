@@ -3,7 +3,7 @@ from flask import Blueprint, render_template, jsonify
 from flask_login import current_user, login_required
 from extensions import db
 from models.game import Game, Screenshot, Video, GameUpdate, UpdateVote, GameFollow
-from models.bundle import Bundle
+from models.bundle import Bundle, BundleGame
 from models.commerce import Tip
 from services.game_service import (
     calculate_display_price,
@@ -55,8 +55,8 @@ def store_front():
 
         games_by_genre[game.genre].append(game)
 
-    # Load all bundles you see. MAKE IT WOOOOOOORK.. Make it woOOOOOrk.. I JUST WANNA MAKE IT WOOORRRK
-    bundles = Bundle.query.filter_by(is_published=True).all()
+    # Load all bundles with their games eagerly loaded
+    bundles = Bundle.query.options(db.joinedload(Bundle.games).joinedload(BundleGame.game)).filter_by(is_published=True).all()
     return render_template("store.html", genres=games_by_genre, all_tags=sorted(all_tags), bundles=bundles)
 
 

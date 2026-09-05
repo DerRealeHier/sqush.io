@@ -83,6 +83,7 @@ def create_app(config_override=None):
     app.config["MAIL_USERNAME"] = config.MAIL_USERNAME
     app.config["MAIL_PASSWORD"] = config.MAIL_PASSWORD
     app.config["MAIL_DEFAULT_SENDER"] = config.MAIL_DEFAULT_SENDER
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 86400
 
     if config_override:
         app.config.update(config_override)
@@ -96,6 +97,13 @@ def create_app(config_override=None):
     limiter.init_app(app)
     #Yea I need that
     migrate.init_app(app, db)
+
+    # Static asset caching headers
+    @app.after_request
+    def add_caching_headers(response):
+        if request.path.startswith("/static/"):
+            response.headers["Cache-Control"] = "public, max-age=86400"
+        return response
 
     # Context processors
     @app.context_processor
@@ -115,6 +123,13 @@ def create_app(config_override=None):
             except Exception as e:
                 print(f"DEBUG: Notification Fehler: {e}")
                 data["unread_count"] = 0
+
+            try:
+                data["recent_notifications"] = Notification.query.filter_by(
+                    user_id=current_user.id
+                ).order_by(Notification.created_at.desc()).limit(5).all()
+            except Exception as e:
+                data["recent_notifications"] = []
 
             try:
                 data["current_user_featured_badge"] = get_featured_badge(current_user)
@@ -170,6 +185,7 @@ def create_app(config_override=None):
                 data["unread_messages_count"] = 0
         else:
             data["unread_count"] = 0
+            data["recent_notifications"] = []
             data["unread_messages_count"] = 0
             data["current_user_featured_badge"] = None
             data["wishlist_ids"] = set()
@@ -211,6 +227,36 @@ with app.app_context():
                 db.session.execute(text("ALTER TABLE user ADD COLUMN created_at DATETIME"))
             if "featured_badge_key" not in columns:
                 db.session.execute(text("ALTER TABLE user ADD COLUMN featured_badge_key VARCHAR(50)"))
+            
+            indexes = [
+                ("idx_game_dev", "game", "developer_id"),
+                ("idx_game_sale", "game", "is_on_sale"),
+                ("idx_game_update_game", "game_update", "game_id"),
+                ("idx_game_update_created", "game_update", "created_at"),
+                ("idx_update_comment_update", "update_comment", "update_id"),
+                ("idx_screenshot_game", "screenshot", "game_id"),
+                ("idx_video_game", "video", "game_id"),
+                ("idx_review_game", "review", "game_id"),
+                ("idx_review_user", "review", "user_id"),
+                ("idx_friendship_sender", "friendship", "sender_id"),
+                ("idx_friendship_receiver", "friendship", "receiver_id"),
+                ("idx_profile_comment_user", "profile_comment", "profile_user_id"),
+                ("idx_bundle_owner", "bundle", "owner_id"),
+                ("idx_bundle_published", "bundle", "is_published"),
+                ("idx_bundle_game_b", "bundle_game", "bundle_id"),
+                ("idx_bundle_game_g", "bundle_game", "game_id"),
+                ("idx_bundle_collab_b", "bundle_collaborator", "bundle_id"),
+                ("idx_bundle_collab_u", "bundle_collaborator", "user_id"),
+                ("idx_collection_user", "collection", "user_id"),
+                ("idx_collection_game_c", "collection_game", "collection_id"),
+                ("idx_collection_game_g", "collection_game", "game_id"),
+            ]
+            for idx_name, tbl, col in indexes:
+                try:
+                    db.session.execute(text(f"CREATE INDEX IF NOT EXISTS {idx_name} ON {tbl} ({col})"))
+                except Exception:
+                    pass
+
             db.session.commit()
     except Exception as e:
         print(f"DEBUG: SQLite column check notice: {e}")
